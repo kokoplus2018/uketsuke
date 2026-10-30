@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF1EC; --surface:#FFFFFF; --surface-2:#F6F8F5; --ink:#1D2925; --muted:#65706B; --line:#D3DAD4;
+  --pine:#2D5A4B; --pine-ink:#FFFFFF; --pine-soft:#DCE8E0; --pine-text:#245043;
+  --walnut:#85552F; --walnut-soft:#F2E8DD;
+  --danger:#B03C32; --danger-soft:#F7E2DF;
+  --dim:rgba(20,30,26,.45);
+  --num:"Barlow Condensed","Hiragino Sans","Hiragino Kaku Gothic ProN",system-ui,sans-serif;
+  --jp:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131917; --surface:#1C2421; --surface-2:#18201D; --ink:#E5EBE8; --muted:#97A39D; --line:#2E3934;
+    --pine:#3D7564; --pine-ink:#FFFFFF; --pine-soft:#22382F; --pine-text:#8FCFB8;
+    --walnut:#D9A676; --walnut-soft:#2E251D;
+    --danger:#E0786D; --danger-soft:#3A2220;
+    --dim:rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131917; --surface:#1C2421; --surface-2:#18201D; --ink:#E5EBE8; --muted:#97A39D; --line:#2E3934;
+  --pine:#3D7564; --pine-ink:#FFFFFF; --pine-soft:#22382F; --pine-text:#8FCFB8;
+  --walnut:#D9A676; --walnut-soft:#2E251D;
+  --danger:#E0786D; --danger-soft:#3A2220;
+  --dim:rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--bg);scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--jp);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:3px solid var(--walnut);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* ヘッダー */
+.top{max-width:1240px;margin:0 auto;padding:14px 16px 24px}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.brand{display:flex;align-items:baseline;gap:8px;margin-right:auto}
+.brand b{font-size:20px;letter-spacing:.04em}
+.brand small{color:var(--muted);font-size:13px}
+.clock{font-size:17px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.stat{display:flex;align-items:baseline;gap:4px;font-size:13px;color:var(--muted)}
+.stat strong{font-family:var(--num);font-size:26px;color:var(--ink);line-height:1;font-weight:600}
+.navbtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 16px;font-size:15px}
+
+/* 番号のグリッド */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (min-width:600px){.grid{grid-template-columns:repeat(5,1fr)}}
+@media (min-width:980px){.grid{grid-template-columns:repeat(6,1fr)}}
+.tile{position:relative;min-height:124px;border-radius:14px;padding:14px 12px 12px;display:flex;flex-direction:column;text-align:left}
+.tile::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:34px;height:5px;border-radius:0 0 5px 5px;background:var(--line)}
+.tile .no{font-family:var(--num);font-weight:600;font-size:46px;line-height:.95}
+.tile.empty{background:var(--surface);border:1px solid var(--line)}
+.tile.empty .no{color:var(--muted)}
+.tile.empty .state{font-size:13px;color:var(--muted);margin:2px 0 auto}
+.btn-in{margin-top:10px;width:100%;border:0;border-radius:10px;background:var(--pine-soft);color:var(--pine-text);font-weight:700;font-size:17px;padding:10px 0}
+.btn-in:active{background:var(--pine);color:var(--pine-ink)}
+.tile.busy{background:var(--pine);color:var(--pine-ink);border:1px solid var(--pine)}
+.tile.busy::before{background:rgba(255,255,255,.35)}
+.tile.busy .stay{font-size:19px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums}
+.tile.busy .since{font-size:13px;opacity:.85;font-variant-numeric:tabular-nums;margin-bottom:auto}
+.tile.busy .more{align-self:flex-end;margin-top:6px;font-size:13px;border:1px solid rgba(255,255,255,.5);border-radius:999px;padding:2px 12px}
+.foot-note{margin-top:18px;font-size:13px;color:var(--muted);text-align:center}
+
+/* シート（全画面） */
+.sheet{position:fixed;top:0;right:0;bottom:0;left:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.sheet-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface)}
+.sheet-head h2{margin:0 auto 0 0;font-size:20px;display:flex;align-items:baseline;gap:4px}
+.sheet-head .no-big{font-family:var(--num);font-size:40px;line-height:1;font-weight:600}
+.back{border:0;background:none;color:var(--pine-text);font-size:16px;padding:8px 4px;font-weight:600}
+.tag{background:var(--pine-soft);color:var(--pine-text);border-radius:999px;padding:3px 12px;font-size:13px;font-weight:700}
+.ghost{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-size:15px}
+.sheet-body{flex:1;overflow:auto;padding:16px;-webkit-overflow-scrolling:touch}
+.sheet-body > .wrap{max-width:1100px;margin:0 auto}
+.sheet-foot{display:flex;align-items:center;gap:16px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--surface)}
+
+/* 詳細画面 */
+.detail-grid{display:grid;gap:14px;max-width:1100px;margin:0 auto}
+@media (min-width:820px){.detail-grid{grid-template-columns:1fr 1.15fr}.detail-grid .note{grid-column:1 / -1}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.panel h3{margin:0 0 10px;font-size:15px;color:var(--muted);font-weight:600}
+.panel h3 + * {margin-top:0}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .lbl{color:var(--muted);font-size:14px;min-width:6.5em}
+.row .val{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;margin-right:auto}
+.row .val.money{color:var(--walnut)}
+.row.edit{gap:8px;background:var(--surface-2);border-radius:10px;padding:10px;border:0;margin:4px 0}
+.row.edit input{flex:1;min-width:0;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:18px}
+.mini{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-size:14px;white-space:nowrap}
+.mini.primary,.primary{background:var(--pine);color:var(--pine-ink);border:1px solid var(--pine)}
+.hint{font-size:13px;color:var(--muted);padding:8px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proj{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:8px 0 0;padding:12px;border-radius:10px;background:var(--walnut-soft);font-size:15px}
+.proj dt{color:var(--muted)}
+.proj dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.addrow{display:grid;grid-template-columns:1fr 1.3fr;gap:8px;margin-bottom:16px}
+.addrow label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.addrow input{padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:20px;color:var(--ink);width:100%}
+.addrow button{grid-column:1 / -1;border-radius:10px;padding:12px 0;font-size:17px;font-weight:700}
+.orders{list-style:none;margin:0;padding:0}
+.orders li{display:grid;grid-template-columns:auto auto 1fr auto auto;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.orders li.none{display:block;color:var(--muted);font-size:14px}
+.orders .ono{font-size:18px;color:var(--walnut)}
+.orders .otime{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.orders .omemo{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.orders .omemo.blank{color:var(--muted)}
+.orders .oamt{font-weight:700;font-variant-numeric:tabular-nums}
+.row.sum .val{font-size:20px}
+textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:16px;resize:vertical}
+.total{display:flex;align-items:baseline;gap:12px;margin-right:auto}
+.total span{color:var(--muted);font-size:15px}
+.total strong{font-size:34px;color:var(--walnut);font-variant-numeric:tabular-nums}
+.total strong small{font-size:18px;margin-left:2px}
+.danger-btn{border:0;background:var(--danger);color:#fff;border-radius:12px;padding:14px 28px;font-size:18px;font-weight:700}
+
+/* モーダル */
+.overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:40;background:var(--dim);display:flex;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.box{background:var(--surface);border-radius:16px;width:100%;max-width:440px;max-height:100%;overflow:auto;padding:20px}
+.box h3{margin:0 0 12px;font-size:19px}
+.box p{margin:0 0 12px;color:var(--muted);font-size:15px}
+.box .row .val{font-size:20px}
+.box input[type=time]{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:20px}
+.btns{display:flex;gap:10px;margin-top:16px}
+.btns button{flex:1;border-radius:12px;padding:13px 0;font-size:16px;font-weight:700;border:1px solid var(--line);background:var(--surface)}
+.btns .go{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btns .ok{background:var(--pine);color:var(--pine-ink);border-color:var(--pine)}
+.err{color:var(--danger);font-size:14px;min-height:1.4em;margin-top:6px}
+.box textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;height:220px}
+
+/* お客様画面 */
+.phone{width:100%;max-width:380px;max-height:100%;overflow:auto;background:var(--surface);border-radius:28px;padding:22px 20px;border:8px solid var(--ink)}
+.c-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.c-head b{font-size:16px;letter-spacing:.04em}
+.c-head span{font-size:13px;color:var(--muted)}
+.c-no{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.c-no strong{font-family:var(--num);font-size:56px;line-height:1;font-weight:600}
+.c-no em{font-style:normal;font-size:18px}
+.c-rows{display:grid;grid-template-columns:1fr auto;gap:10px 12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.c-rows dt{color:var(--muted)}
+.c-rows dd{margin:0;text-align:right;font-weight:700}
+.c-total{display:flex;justify-content:space-between;align-items:baseline;background:var(--walnut-soft);border-radius:12px;padding:14px;margin:14px 0}
+.c-total strong{font-size:32px;color:var(--walnut);font-variant-numeric:tabular-nums}
+.c-small{font-size:13px;color:var(--muted);margin:4px 0}
+.c-close{margin-top:16px;width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:12px;padding:12px;font-size:15px}
+.c-empty{padding:30px 0;text-align:center;color:var(--muted)}
+
+/* 履歴・設定 */
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:9px 20px;font-size:15px}
+.seg button[aria-pressed="true"]{background:var(--pine);color:var(--pine-ink);font-weight:700}
+.hnav{display:flex;align-items:center;gap:10px;margin:14px 0}
+.hnav strong{font-size:20px;min-width:9em;text-align:center}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+@media (min-width:700px){.cards{grid-template-columns:repeat(4,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.card span{display:block;font-size:13px;color:var(--muted)}
+.card strong{font-size:24px;font-variant-numeric:tabular-nums}
+.card.main strong{color:var(--walnut)}
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:15px;font-variant-numeric:tabular-nums}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:13px;color:var(--muted);font-weight:600;background:var(--surface-2)}
+th:first-child,td:first-child{text-align:left}
+td.memo{text-align:left;white-space:normal;min-width:10em;color:var(--muted);font-size:13px}
+tr.link{cursor:pointer}
+tr.link:active{background:var(--pine-soft)}
+.empty-msg{padding:24px;text-align:center;color:var(--muted)}
+.form{display:grid;gap:12px;max-width:640px;margin:0 auto}
+.fset{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.fset h3{margin:0 0 12px;font-size:16px}
+.fline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0}
+.fline .k{min-width:8.5em;color:var(--muted);font-size:14px}
+.fline input,.fline select{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:17px}
+.fline input{width:6em;text-align:right}
+.example{margin-top:8px;padding:12px;border-radius:10px;background:var(--walnut-soft);font-size:14px;line-height:1.8}
+.wide-btn{width:100%;border-radius:12px;padding:13px 0;font-size:16px;font-weight:700}
+.danger-line{border:1px solid var(--danger);color:var(--danger);background:var(--surface)}
+
+/* トースト */
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--bg);border-radius:12px;padding:12px 14px 12px 18px;display:flex;align-items:center;gap:14px;font-size:15px;max-width:calc(100% - 32px)}
+.toast button{border:0;background:var(--bg);color:var(--ink);border-radius:8px;padding:7px 12px;font-weight:700;font-size:14px}
+
+@media (prefers-reduced-motion: no-preference){
+  .sheet{animation:up .18s ease-out}
+  @keyframes up{from{transform:translateY(16px);opacity:.4}to{transform:none;opacity:1}}
+}
+/* Google版で追加 */
+html{height:100%;overflow:hidden}
+body{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.sheet-body{-webkit-overflow-scrolling:touch}
+.c-orders{list-style:none;margin:0;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;font-variant-numeric:tabular-nums}
+.c-orders li{display:grid;grid-template-columns:auto auto 1fr auto;gap:8px;padding:3px 0;color:var(--muted)}
+.c-orders .m{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-orders .a{color:var(--ink)}
+.c-review{display:block;margin-top:12px;text-align:center;color:var(--muted);font-size:14px;padding:8px;text-decoration:underline;text-underline-offset:3px}
+.c-survey{display:block;margin-top:16px;text-align:center;border:1px solid var(--pine);color:var(--pine-text);background:var(--pine-soft);border-radius:12px;padding:13px;font-weight:700;text-decoration:none}
+.pinbox input{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:28px;letter-spacing:.3em;text-align:center}
+.loading{grid-column:1 / -1;padding:40px;text-align:center;color:var(--muted)}
+.tile.pending{opacity:.7}
+.qr-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:900px;margin:0 auto}
+@media (min-width:700px){.qr-grid{grid-template-columns:repeat(3,1fr)}}
+.qr-card{background:#fff;color:#1D2925;border:1px solid #D3DAD4;border-radius:12px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;break-inside:avoid;page-break-inside:avoid}
+.qr-card .qn{font-family:var(--num);font-size:40px;font-weight:600;line-height:1}
+.qr-card .qb{font-size:12px;letter-spacing:.06em}
+.qr-card .qt{font-size:11px;text-align:center;color:#4b5550}
+.qr-card .qimg{width:140px;height:140px}
+.qr-card .qimg img,.qr-card .qimg canvas{width:140px!important;height:140px!important}
+.qr-card a{font-size:12px;color:#245043}
+.cwrap{max-width:440px;margin:0 auto;padding:20px 16px 32px}
+.cpanel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px 20px}
+@media print{
+  html,body{height:auto;overflow:visible}
+  body{background:#fff}
+  .top,.sheet:not(#qr),.overlay,.toast{display:none!important}
+  #qr{position:static;display:block;background:#fff;padding:0}
+  #qr .sheet-head,.qr-card a,.qr-note{display:none!important}
+  #qr .sheet-body{overflow:visible;padding:0}
+  .qr-grid{grid-template-columns:repeat(3,1fr);gap:8mm}
+}
+</style>
+</head>
+<body>
+<script>
+"use strict";
+const BOOT = <?!= boot ?>;
+const pad = n => String(n).padStart(2,"0");
+const yen = n => Number(n||0).toLocaleString("ja-JP");
+const WD = "日月火水木金土";
+const fmtTime = ms => { const d = new Date(ms); return pad(d.getHours())+":"+pad(d.getMinutes()); };
+const fmtDay = ms => { const d = new Date(ms); return (d.getMonth()+1)+"月"+d.getDate()+"日（"+WD[d.getDay()]+"）"; };
+const dur = min => { if(min < 60) return min+"分"; const h = Math.floor(min/60), m = min%60; return m ? h+"時間"+m+"分" : h+"時間"; };
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const $ = s => document.querySelector(s);
+const set = (sel, html) => { const el = $(sel); if(el) el.innerHTML = html; };
+const minutesOf = (a, b) => Math.max(0, Math.floor((b - a) / 60000));
+let skew = 0;
+const now = () => Date.now() + skew;
+function maxFor(inAt, s){
+  const day = new Date(inAt).getDay(), weekday = day>=1 && day<=5;
+  if(s.campaign==="all" || (s.campaign==="weekday" && weekday)) return {max:Number(s.maxCampaign), campaign:true};
+  return {max:Number(s.maxNormal), campaign:false};
+}
+function ordersListHTML(orders, mode){
+  if(mode === "none" || !orders || !orders.length) return "";
+  return '<ul class="c-orders">' + orders.map((o,i) => '<li><span>'+(i<20?String.fromCharCode(0x2460+i):"("+(i+1)+")")+'</span><span class="t">'+fmtTime(o.at)+'</span><span class="m">'+(mode==="memo" && o.memo ? esc(o.memo) : "")+'</span><span class="a">'+yen(o.amount)+'円</span></li>').join("") + '</ul>';
+}
+function calcFee(min, inAt, s){
+  let p;
+  if(min <= s.baseMin) p = Number(s.basePrice);
+  else {
+    const u = (min - s.baseMin) / s.unitMin;
+    const k = s.rounding==="ceil" ? Math.ceil(u) : s.rounding==="floor" ? Math.floor(u) : Math.round(u);
+    p = Number(s.basePrice) + k * Number(s.unitPrice);
+  }
+  const m = maxFor(inAt, s).max;
+  if(m > 0) p = Math.min(p, m);
+  return p;
+}
+</script>
+
+<? if (mode === 'customer') { ?>
+<main class="cwrap"><div class="cpanel" id="cpage"></div></main>
+<script>
+let C = BOOT;
+if(C && C.now) skew = C.now - Date.now();
+function renderC(){
+  const el = $("#cpage");
+  if(!C || !C.ok){
+    el.innerHTML = '<div class="c-head"><b>KOKO PLUS</b><span>ご利用状況</span></div><div class="c-empty">このQRコードは使えません。スタッフにお声がけください。</div>';
+    return;
+  }
+  const r = C.active, s = C.pricing;
+  let body;
+  if(!r && C.v){
+    body = '<div class="c-empty">ご利用ありがとうございました。<br>またのお越しをお待ちしております。</div>';
+  } else if(!r){
+    body = '<div class="c-no"><strong>'+C.n+'</strong><em>番</em></div><div class="c-empty">現在、この番号のご利用はありません。</div>';
+  } else {
+    const t = now(), min = minutesOf(r.inAt, t);
+    const fee = r.feeOverride != null ? r.feeOverride : calcFee(min, r.inAt, s);
+    const mx = maxFor(r.inAt, s);
+    body = '<div class="c-no"><strong>'+C.n+'</strong><em>番</em><span class="tag">ご利用中</span></div>'
+      + '<dl class="c-rows"><dt>入店時刻</dt><dd>'+fmtTime(r.inAt)+'</dd><dt>滞在時間</dt><dd>'+dur(min)+'</dd>'
+      + '<dt>滞在料金</dt><dd>'+yen(fee)+'円</dd><dt>注文金額</dt><dd>'+yen(r.orderTotal)+'円</dd></dl>'
+      + ordersListHTML(r.orders, s.breakdown)
+      + '<div class="c-total"><span>合計金額</span><strong>'+yen(fee + r.orderTotal)+'円</strong></div>'
+      + (r.feeOverride == null ? '<p class="c-small">滞在料金は最大 '+yen(mx.max)+'円です'+(mx.campaign ? '（平日キャンペーン中／通常 '+yen(s.maxNormal)+'円）' : '')+'。ご注文は別にかかります。</p>' : '')
+      + '<p class="c-small">料金は目安です。わからないことはスタッフにお声がけください。</p>';
+  }
+  if(s.surveyUrl) body += '<a class="c-survey" href="'+esc(s.surveyUrl)+'" target="_blank" rel="noopener">かんたんアンケートに答える（30秒）</a>';
+  if(s.reviewUrl) body += '<a class="c-review" href="'+esc(s.reviewUrl)+'" target="_blank" rel="noopener">よろしければ、Googleマップに口コミをお寄せください</a>';
+  el.innerHTML = '<div class="c-head"><b>KOKO PLUS</b><span>ご利用状況</span></div>' + body;
+}
+function pollC(){
+  if(!C || !C.ok) return;
+  const run = google.script.run.withSuccessHandler(r => { if(r && r.ok){ C = r; skew = r.now - Date.now(); } renderC(); });
+  if(C.v) run.customerV(C.v); else run.customer(C.n, C.k);
+}
+renderC();
+setInterval(renderC, 15000);
+setInterval(pollC, 30000);
+document.addEventListener("visibilitychange", () => { if(!document.hidden) pollC(); });
+</script>
+
+<? } else { ?>
+<main class="top">
+  <div class="bar">
+    <div class="brand"><b>KOKO PLUS 受付</b></div>
+    <span class="clock" id="clock"></span>
+    <span class="stat">利用中<strong id="st-active">0</strong>組</span>
+    <span class="stat">本日<strong id="st-today">0</strong>組</span>
+    <button class="navbtn" data-act="open-history">履歴</button>
+    <button class="navbtn" data-act="open-qr">QRコード</button>
+    <button class="navbtn" data-act="open-settings">設定</button>
+  </div>
+  <div class="grid" id="grid"><div class="loading">読み込み中です…</div></div>
+</main>
+
+<section class="sheet" id="detail" hidden></section>
+<section class="sheet" id="history" hidden></section>
+<section class="sheet" id="settings" hidden></section>
+<section class="sheet" id="qr" hidden></section>
+<div class="overlay" id="cust" hidden></div>
+<div class="overlay" id="modal" hidden></div>
+<div class="overlay" id="pin" hidden>
+  <div class="box pinbox" role="dialog" aria-modal="true" aria-labelledby="pin-t">
+    <h3 id="pin-t">暗証番号を入れてください</h3>
+    <p>スプレッドシートの「設定」シートに書いてある番号です。この端末では、次から入れなくて大丈夫です。</p>
+    <input id="pin-in" type="password" inputmode="numeric" autocomplete="off" aria-label="暗証番号">
+    <div class="err" id="pin-err"></div>
+    <div class="btns"><button class="ok" data-act="pin-ok">入る</button></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+function maxN(){
+  let m = (state.settings && state.settings.maxNum) || 20;
+  Object.keys(state.active).forEach(k => { if(Number(k) > m) m = Number(k); });
+  return m;
+}
+const PIN_KEY = "kokoplus-pin";
+let PIN = "";
+try{ PIN = localStorage.getItem(PIN_KEY) || ""; }catch(e){}
+if(BOOT && BOOT.pin) PIN = BOOT.pin; // スタッフ用アドレスから開いたとき
+const state = {active:{}, settings:null, today:0};
+let pending = 0;
+const clone = o => JSON.parse(JSON.stringify(o));
+const circled = i => i < 20 ? String.fromCharCode(0x2460+i) : "("+(i+1)+")";
+const toHalf = s => String(s||"").replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[,，円\s]/g,"");
+const orderTotal = r => (r.orders||[]).reduce((t,o) => t + o.amount, 0);
+const feeOf = (r, t) => r.feeOverride != null ? r.feeOverride : calcFee(minutesOf(r.inAt, t), r.inAt, state.settings);
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* ---------- Googleとのやりとり ---------- */
+function call(action, d){
+  pending++;
+  return new Promise((res, rej) => {
+    google.script.run
+      .withSuccessHandler(r => { pending--; if(r && r.active) applySnap(r); res(r); })
+      .withFailureHandler(err => {
+        pending--;
+        const m = String((err && err.message) || err);
+        const i = m.indexOf("PIN:");
+        if(i >= 0){ showPin(m.slice(i+4)); rej(m.slice(i+4)); return; }
+        rej(m.replace(/^(Error|Exception|エラー)[:：]\s*/, ""));
+      })
+      .api(PIN, action, d || {});
+  });
+}
+function applySnap(r){
+  state.active = r.active; state.settings = r.settings; state.today = r.today; if(r.appUrl) state.appUrl = r.appUrl; state.custUrl = r.custUrl || "";
+  if(r.now) skew = r.now - Date.now();
+  renderTop();
+  if(detailN != null){ if(!state.active[detailN]) closeDetail(); else renderOrders(); }
+  renderCustIfOpen();
+}
+function fail(m){ toast("保存できませんでした。通信を確かめて、もう一度お試しください。（"+m+"）"); refresh(); }
+function refresh(){ return call("load").catch(() => {}); }
+
+/* ---------- 暗証番号 ---------- */
+function showPin(msg){
+  $("#pin").hidden = false;
+  set("#pin-err", esc(msg || ""));
+  setTimeout(() => $("#pin-in").focus(), 50);
+}
+function submitPin(){
+  const v = toHalf($("#pin-in").value);
+  if(!v){ set("#pin-err", "暗証番号を入れてください。"); return; }
+  PIN = v;
+  set("#pin-err", "確認しています…");
+  call("load").then(() => {
+    try{ localStorage.setItem(PIN_KEY, PIN); }catch(e){}
+    $("#pin").hidden = true; $("#pin-in").value = "";
+  }).catch(m => { set("#pin-err", esc(m)); });
+}
+
+/* ---------- お知らせと取り消し ---------- */
+let toastTimer = null, undoFn = null;
+function toast(msg, fn){
+  undoFn = fn || null;
+  const t = $("#toast");
+  t.innerHTML = "<span>"+esc(msg)+"</span>" + (fn ? '<button data-act="undo">取り消す</button>' : "");
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, fn ? 7000 : 3500);
+}
+function hideToast(){ $("#toast").hidden = true; undoFn = null; }
+
+/* ---------- TOP ---------- */
+function renderTop(){
+  const t = now();
+  set("#clock", fmtDay(t) + " " + fmtTime(t));
+  if(!state.settings) return;
+  set("#st-active", Object.keys(state.active).length);
+  set("#st-today", state.today);
+  let html = "";
+  for(let n=1; n<=maxN(); n++){
+    const r = state.active[n];
+    if(!r){
+      html += '<div class="tile empty"><span class="no">'+n+'</span><span class="state">空き</span><button class="btn-in" data-act="checkin" data-n="'+n+'" aria-label="'+n+'番 入店">入店</button></div>';
+    } else {
+      html += '<button class="tile busy'+(r.id==="tmp"?" pending":"")+'" data-act="open" data-n="'+n+'" aria-label="'+n+'番 詳細を開く"><span class="no">'+n+'</span><span class="stay">'+dur(minutesOf(r.inAt, t))+'</span><span class="since">'+fmtTime(r.inAt)+' 入店</span><span class="more">詳細</span></button>';
+    }
+  }
+  $("#grid").innerHTML = html;
+}
+function newVk(){
+  let k = "";
+  try{ const a = new Uint8Array(10); crypto.getRandomValues(a); a.forEach(x => { k += (x % 36).toString(36); }); }catch(e){}
+  while(k.length < 16) k += Math.floor(Math.random()*36).toString(36);
+  return k.slice(0,16);
+}
+function xmlEsc(t){ return String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c])); }
+function printReceipt(n, inAt, vk){
+  if(!state.appUrl){ toast("レシートのQRコードに使うアドレスがありません。設定シートのB12を確かめてください"); return; }
+  const url = (state.custUrl || state.appUrl) + "?v=" + vk;
+  const d = new Date(inAt);
+  const date = d.getFullYear()+"/"+pad(d.getMonth()+1)+"/"+pad(d.getDate());
+  const xml = '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">'
+    + '<text lang="ja"/><text align="center"/>'
+    + '<text width="2" height="2">KOKO PLUS&#10;</text>'
+    + '<feed line="1"/>'
+    + '<text width="1" height="1">受付番号&#10;</text>'
+    + '<text width="4" height="4">'+xmlEsc(n)+'&#10;</text>'
+    + '<feed line="1"/>'
+    + '<text width="1" height="1">入店 '+xmlEsc(date)+' '+xmlEsc(fmtTime(inAt))+'&#10;</text>'
+    + '<feed line="1"/>'
+    + '<symbol type="qrcode_model_2" level="level_m" width="6">'+xmlEsc(url)+'</symbol>'
+    + '<feed line="1"/>'
+    + '<text>読み取ると、滞在時間と料金が&#10;スマホで見られます&#10;</text>'
+    + '<feed line="3"/><cut type="feed"/>'
+    + '</epos-print>';
+  const link = "tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml&data=" + encodeURIComponent(xml);
+  const a = document.createElement("a");
+  a.href = link; a.target = "_top"; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function checkIn(n){
+  if(state.active[n]) return;
+  const vk = newVk(), t = now();
+  state.active[n] = {id:"tmp", inAt:t, vk, orders:[], note:"", feeOverride:null};
+  renderTop();
+  if(state.settings && state.settings.receipt) printReceipt(n, t, vk);
+  call("checkin", {n, vk}).then(r => {
+    const rec = r.active[n];
+    toast(n+"番 "+fmtTime(rec.inAt)+" に入店しました", () => call("restore", {n, rec:null}));
+  }).catch(fail);
+}
+
+/* ---------- 詳細 ---------- */
+let detailN = null, noteTimer = null;
+function openDetail(n){
+  if(!state.active[n] || state.active[n].id === "tmp") return;
+  detailN = n; renderDetail(); $("#detail").hidden = false;
+}
+function closeDetail(){ flushNote(); detailN = null; $("#detail").hidden = true; }
+function renderDetail(){
+  const n = detailN, r = state.active[n];
+  $("#detail").innerHTML = ''
+  + '<header class="sheet-head"><button class="back" data-act="close-detail">‹ 一覧へ</button><h2><span class="no-big">'+n+'</span>番</h2><span class="tag">利用中</span>'+(state.settings.receipt ? '<button class="ghost" data-act="reprint">レシート</button>' : '')+'<button class="ghost" data-act="cust" data-n="'+n+'">お客様の画面</button></header>'
+  + '<div class="sheet-body"><div class="detail-grid">'
+  +   '<section class="panel">'
+  +     '<div class="row"><span class="lbl">入店時刻</span><span class="val" id="d-in"></span><button class="mini" data-act="edit-in">訂正</button></div>'
+  +     '<div class="row edit" id="d-in-edit" hidden><input type="time" id="in-time" aria-label="入店時刻"><button class="mini primary" data-act="save-in">決定</button><button class="mini" data-act="cancel-in">やめる</button></div>'
+  +     '<div class="row"><span class="lbl">滞在時間</span><span class="val" id="d-stay"></span></div>'
+  +     '<div class="row"><span class="lbl">滞在料金</span><span class="val money" id="d-fee"></span><button class="mini" data-act="edit-fee">訂正</button></div>'
+  +     '<div class="row edit" id="d-fee-edit" hidden><input id="fee-in" inputmode="numeric" aria-label="滞在料金（円）" placeholder="金額（円）"><button class="mini primary" data-act="save-fee">決定</button><button class="mini" data-act="cancel-fee">やめる</button></div>'
+  +     '<div class="hint" id="d-fee-note"></div>'
+  +   '</section>'
+  +   '<section class="panel">'
+  +     '<h3>注文の追加</h3>'
+  +     '<div class="addrow"><label>金額（円）<input id="o-amt" inputmode="numeric" placeholder="400" autocomplete="off"></label><label>メモ（任意）<input id="o-memo" placeholder="コーヒー" autocomplete="off"></label><button class="primary" data-act="add-order">追加</button></div>'
+  +     '<h3>注文一覧</h3><ol class="orders" id="d-orders"></ol>'
+  +     '<div class="row sum"><span class="lbl">注文金額の合計</span><span class="val" id="d-otot"></span></div>'
+  +   '</section>'
+  +   '<section class="panel note"><h3>備考メモ</h3><textarea id="d-note" rows="3" placeholder="スタッフ用のメモです。お客様の画面には出ません。">'+esc(r.note)+'</textarea></section>'
+  + '</div></div>'
+  + '<footer class="sheet-foot"><div class="total"><span>合計金額</span><strong id="d-total"></strong></div><button class="danger-btn" data-act="checkout" data-n="'+n+'">退店する</button></footer>';
+  $("#d-note").addEventListener("input", () => { clearTimeout(noteTimer); noteTimer = setTimeout(flushNote, 900); });
+  ["#o-amt","#o-memo"].forEach(s => $(s).addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); addOrder(); } }));
+  renderOrders();
+}
+function flushNote(){
+  clearTimeout(noteTimer); noteTimer = null;
+  const ta = $("#d-note"), r = state.active[detailN];
+  if(!ta || !r || r.note === ta.value) return;
+  r.note = ta.value;
+  call("save", {n:detailN, rec:r}).catch(fail);
+}
+function updateDetailLive(){
+  const r = state.active[detailN]; if(!r) return;
+  const s = state.settings, t = now(), min = minutesOf(r.inAt, t), fee = feeOf(r, t), ot = orderTotal(r), mx = maxFor(r.inAt, s);
+  set("#d-in", fmtTime(r.inAt));
+  set("#d-stay", dur(min));
+  set("#d-fee", yen(fee)+"円");
+  set("#d-otot", yen(ot)+"円");
+  set("#d-total", yen(fee+ot)+"<small>円</small>");
+  if(r.feeOverride != null){
+    set("#d-fee-note", "手で訂正した金額です（自動計算では "+yen(calcFee(min, r.inAt, s))+"円）"+'<button class="mini" data-act="fee-auto">自動に戻す</button>');
+  } else {
+    set("#d-fee-note", "滞在料金は最大 "+yen(mx.max)+"円" + (mx.campaign ? "（平日キャンペーン中／通常 "+yen(s.maxNormal)+"円）" : "") + "。注文は別です。");
+  }
+}
+function renderOrders(){
+  const r = state.active[detailN]; if(!r) return;
+  if(!r.orders.length){
+    set("#d-orders", '<li class="none">まだ注文はありません。金額を入れて「追加」を押すと、ここに並びます。</li>');
+  } else {
+    set("#d-orders", r.orders.map((o,i) => '<li><span class="ono">'+circled(i)+'</span><span class="otime">'+fmtTime(o.at)+'</span><span class="omemo'+(o.memo?'':' blank')+'">'+(o.memo?esc(o.memo):'（メモなし）')+'</span><span class="oamt">'+yen(o.amount)+'円</span><button class="mini" data-act="del-order" data-id="'+esc(o.id)+'" aria-label="'+circled(i)+'を削除">削除</button></li>').join(""));
+  }
+  updateDetailLive();
+}
+function saveRec(n, prev, msg){
+  const r = state.active[n];
+  renderOrders(); renderCustIfOpen();
+  return call("save", {n, rec:r}).then(() => { if(msg) toast(msg, () => call("restore", {n, rec:prev})); }).catch(fail);
+}
+function addOrder(){
+  const n = detailN, r = state.active[n]; if(!r) return;
+  const amt = parseInt(toHalf($("#o-amt").value), 10);
+  if(!(amt > 0)){ toast("金額を数字で入れてください"); $("#o-amt").focus(); return; }
+  flushNote();
+  const prev = clone(r);
+  r.orders.push({id:uid(), at:now(), amount:amt, memo:$("#o-memo").value.trim()});
+  $("#o-amt").value = ""; $("#o-memo").value = "";
+  saveRec(n, prev, "注文 "+yen(amt)+"円 を追加しました");
+}
+function delOrder(id){
+  const n = detailN, r = state.active[n]; if(!r) return;
+  const i = r.orders.findIndex(o => o.id === id); if(i < 0) return;
+  flushNote();
+  const prev = clone(r);
+  const o = r.orders.splice(i,1)[0];
+  saveRec(n, prev, "注文 "+yen(o.amount)+"円 を削除しました");
+}
+function timeOnSameDay(baseMs, hhmm){
+  const p = hhmm.split(":").map(Number), d = new Date(baseMs);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), p[0], p[1], 0).getTime();
+}
+
+/* ---------- 退店 ---------- */
+let coN = null;
+function openCheckout(n){
+  flushNote();
+  coN = n;
+  const r = state.active[n];
+  $("#modal").innerHTML = '<div class="box" role="dialog" aria-modal="true" aria-labelledby="co-t">'
+    + '<h3 id="co-t">'+n+'番の退店</h3>'
+    + '<div class="row"><span class="lbl">退店時刻</span><input type="time" id="out-time" value="'+fmtTime(now())+'" aria-label="退店時刻"></div>'
+    + '<div class="row"><span class="lbl">入店時刻</span><span class="val">'+fmtTime(r.inAt)+'</span></div>'
+    + '<div class="row"><span class="lbl">滞在時間</span><span class="val" id="co-stay"></span></div>'
+    + '<div class="row"><span class="lbl">滞在料金</span><span class="val" id="co-fee"></span></div>'
+    + '<div class="row"><span class="lbl">注文金額</span><span class="val">'+yen(orderTotal(r))+'円</span></div>'
+    + '<div class="row"><span class="lbl">合計金額</span><span class="val money" id="co-total" style="font-size:28px"></span></div>'
+    + '<div class="err" id="co-err"></div>'
+    + '<div class="btns"><button data-act="modal-close">キャンセル</button><button class="go" id="co-go" data-act="checkout-ok">退店を確定する</button></div></div>';
+  $("#modal").hidden = false;
+  $("#out-time").addEventListener("change", updateCheckout);
+  updateCheckout();
+}
+function coOutAt(){ const v = $("#out-time").value; return v ? timeOnSameDay(state.active[coN].inAt, v) : now(); }
+function updateCheckout(){
+  const r = state.active[coN]; if(!r || !$("#out-time")) return;
+  const out = coOutAt();
+  if(out < r.inAt){ set("#co-err", "退店時刻が入店時刻より前になっています。"); return; }
+  set("#co-err", "");
+  const min = minutesOf(r.inAt, out), fee = r.feeOverride != null ? r.feeOverride : calcFee(min, r.inAt, state.settings);
+  set("#co-stay", dur(min));
+  set("#co-fee", yen(fee)+"円" + (r.feeOverride != null ? "（手入力）" : ""));
+  set("#co-total", yen(fee + orderTotal(r))+"円");
+}
+function confirmCheckout(){
+  const n = coN, r = state.active[n]; if(!r) return;
+  const out = coOutAt();
+  if(out < r.inAt){ set("#co-err", "退店時刻が入店時刻より前になっています。"); return; }
+  const prev = clone(r), btn = $("#co-go");
+  btn.disabled = true; btn.textContent = "保存しています…";
+  call("checkout", {n, outAt:out}).then(res => {
+    closeModal(); closeDetail(); closeCust();
+    toast(n+"番 退店しました（合計 "+yen(res.total)+"円）", () => call("restore", {n, rec:prev, historyId:res.historyId}));
+  }).catch(m => { set("#co-err", "保存できませんでした。もう一度押してください。（"+esc(m)+"）"); btn.disabled = false; btn.textContent = "退店を確定する"; });
+}
+function closeModal(){ $("#modal").hidden = true; $("#modal").innerHTML = ""; coN = null; }
+
+/* ---------- お客様の画面（見本） ---------- */
+let custN = null;
+function openCust(n){ custN = n; renderCust(); $("#cust").hidden = false; }
+function closeCust(){ custN = null; $("#cust").hidden = true; }
+function renderCustIfOpen(){ if(custN != null) renderCust(); }
+function renderCust(){
+  const n = custN, r = state.active[n], s = state.settings, t = now();
+  let body;
+  if(!r){
+    body = '<div class="c-no"><strong>'+n+'</strong><em>番</em></div><div class="c-empty">現在、この番号のご利用はありません。</div>';
+  } else {
+    const min = minutesOf(r.inAt, t), fee = feeOf(r, t), ot = orderTotal(r), mx = maxFor(r.inAt, s);
+    body = '<div class="c-no"><strong>'+n+'</strong><em>番</em><span class="tag">ご利用中</span></div>'
+      + '<dl class="c-rows"><dt>入店時刻</dt><dd>'+fmtTime(r.inAt)+'</dd><dt>滞在時間</dt><dd>'+dur(min)+'</dd><dt>滞在料金</dt><dd>'+yen(fee)+'円</dd><dt>注文金額</dt><dd>'+yen(ot)+'円</dd></dl>'
+      + ordersListHTML(r.orders, s.breakdown)
+      + '<div class="c-total"><span>合計金額</span><strong>'+yen(fee+ot)+'円</strong></div>'
+      + (r.feeOverride == null ? '<p class="c-small">滞在料金は最大 '+yen(mx.max)+'円です'+(mx.campaign ? '（平日キャンペーン中／通常 '+yen(s.maxNormal)+'円）' : '')+'。ご注文は別にかかります。</p>' : '')
+      + '<p class="c-small">料金は目安です。わからないことはスタッフにお声がけください。</p>';
+  }
+  $("#cust").innerHTML = '<div class="phone" role="dialog" aria-modal="true" aria-label="お客様の画面"><div class="c-head"><b>KOKO PLUS</b><span>ご利用状況</span></div>'+body
+    + '<button class="c-close" data-act="close-cust">閉じる（お客様のスマホではこのボタンは出ません）</button></div>';
+}
+
+/* ---------- 履歴 ---------- */
+const hv = {mode:"day", anchor:Date.now()};
+let hvRecs = null, hvSeq = 0;
+function range(){
+  const d = new Date(hv.anchor), y = d.getFullYear(), m = d.getMonth();
+  if(hv.mode === "day"){ const s = new Date(y, m, d.getDate()); return [s.getTime(), new Date(y, m, d.getDate()+1).getTime(), y+"年 "+fmtDay(s)]; }
+  if(hv.mode === "month") return [new Date(y, m, 1).getTime(), new Date(y, m+1, 1).getTime(), y+"年"+(m+1)+"月"];
+  return [new Date(y, 0, 1).getTime(), new Date(y+1, 0, 1).getTime(), y+"年"];
+}
+function shift(dir){
+  const d = new Date(hv.anchor);
+  if(hv.mode === "day") d.setDate(d.getDate()+dir);
+  else if(hv.mode === "month"){ d.setDate(1); d.setMonth(d.getMonth()+dir); }
+  else d.setFullYear(d.getFullYear()+dir);
+  hv.anchor = d.getTime(); loadHistory();
+}
+function loadHistory(){
+  hvRecs = null; renderHistory();
+  const seq = ++hvSeq, rg = range();
+  call("history", {from:rg[0], to:rg[1]}).then(r => {
+    if(seq !== hvSeq) return;
+    hvRecs = (r.records || []).sort((a,b) => a.inAt - b.inAt); renderHistory();
+  }).catch(m => { if(seq !== hvSeq) return; hvRecs = []; renderHistory(); toast("履歴を読み込めませんでした。（"+m+"）"); });
+}
+function renderHistory(){
+  const label = range()[2], recs = hvRecs || [];
+  const sum = k => recs.reduce((t,h) => t + h[k], 0);
+  let table;
+  if(hvRecs === null) table = '<div class="empty-msg">読み込み中です…</div>';
+  else if(!recs.length) table = '<div class="empty-msg">この期間の記録はありません。</div>';
+  else if(hv.mode === "day"){
+    table = '<table><thead><tr><th>番号</th><th>入店</th><th>退店</th><th>滞在</th><th>滞在料金</th><th>注文</th><th>合計</th><th style="text-align:left">注文メモ・備考</th></tr></thead><tbody>'
+      + recs.map(h => '<tr><td>'+h.num+'番</td><td>'+fmtTime(h.inAt)+'</td><td>'+fmtTime(h.outAt)+'</td><td>'+dur(h.minutes)+'</td><td>'+yen(h.fee)+'円'+(h.feeManual?'＊':'')+'</td><td>'+yen(h.orderTotal)+'円</td><td><b>'+yen(h.total)+'円</b></td><td class="memo">'+esc([(h.orders||[]).map(o => o.memo).filter(Boolean).join("、"), h.note].filter(Boolean).join(" ／ "))+'</td></tr>').join("")
+      + '</tbody></table>';
+  } else {
+    const groups = new Map();
+    recs.forEach(h => {
+      const d = new Date(h.outAt);
+      const key = hv.mode === "month" ? new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() : new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+      const g = groups.get(key) || {n:0, fee:0, ord:0, tot:0};
+      g.n++; g.fee += h.fee; g.ord += h.orderTotal; g.tot += h.total; groups.set(key, g);
+    });
+    const next = hv.mode === "month" ? "day" : "month";
+    table = '<table><thead><tr><th>'+(hv.mode === "month" ? "日付" : "月")+'</th><th>件数</th><th>滞在料金</th><th>注文</th><th>売上</th></tr></thead><tbody>'
+      + Array.from(groups.entries()).map(e => { const k = e[0], g = e[1]; return '<tr class="link" data-act="hgo" data-mode="'+next+'" data-t="'+k+'"><td>'+(hv.mode === "month" ? fmtDay(k) : (new Date(k).getMonth()+1)+"月")+' ›</td><td>'+g.n+'件</td><td>'+yen(g.fee)+'円</td><td>'+yen(g.ord)+'円</td><td><b>'+yen(g.tot)+'円</b></td></tr>'; }).join("")
+      + '</tbody></table>';
+  }
+  $("#history").innerHTML = '<header class="sheet-head"><button class="back" data-act="close-history">‹ 一覧へ</button><h2>履歴</h2><button class="ghost" data-act="csv">CSVを出す</button></header>'
+  + '<div class="sheet-body"><div class="wrap">'
+  + '<div class="seg" role="group" aria-label="期間">' + [["day","日"],["month","月"],["year","年"]].map(x => '<button data-act="hmode" data-mode="'+x[0]+'" aria-pressed="'+(hv.mode===x[0])+'">'+x[1]+'</button>').join("") + '</div>'
+  + '<div class="hnav"><button class="mini" data-act="hprev">‹ 前</button><strong>'+label+'</strong><button class="mini" data-act="hnext">次 ›</button><button class="mini" data-act="htoday">今日</button></div>'
+  + '<div class="cards"><div class="card"><span>利用件数</span><strong>'+recs.length+'件</strong></div><div class="card"><span>滞在料金</span><strong>'+yen(sum("fee"))+'円</strong></div><div class="card"><span>注文金額</span><strong>'+yen(sum("orderTotal"))+'円</strong></div><div class="card main"><span>売上合計</span><strong>'+yen(sum("total"))+'円</strong></div></div>'
+  + '<div class="tbl-wrap">'+table+'</div>'
+  + (hv.mode === "day" && recs.some(h => h.feeManual) ? '<p class="hint">＊は手で訂正した滞在料金です。</p>' : '')
+  + '<p class="hint">退店した日の記録として数えています。すべての記録は、スプレッドシートの「履歴」シートにも入っています。</p>'
+  + '</div></div>';
+}
+function csvText(){
+  const q = v => '"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const lines = [["番号","日付","入店時刻","退店時刻","滞在分","滞在料金","注文金額","合計","注文内容","備考"].map(q).join(",")];
+  (hvRecs || []).forEach(h => {
+    const d = new Date(h.inAt);
+    lines.push([h.num, d.getFullYear()+"/"+pad(d.getMonth()+1)+"/"+pad(d.getDate()), fmtTime(h.inAt), fmtTime(h.outAt), h.minutes, h.fee, h.orderTotal, h.total,
+      (h.orders||[]).map(o => (o.memo||"メモなし")+" "+o.amount+"円").join(" / "), h.note].map(q).join(","));
+  });
+  return lines.join("\n");
+}
+function openCsv(){
+  $("#modal").innerHTML = '<div class="box" role="dialog" aria-modal="true" aria-labelledby="csv-t"><h3 id="csv-t">CSV（'+esc(range()[2])+'）</h3>'
+    + '<p>下の文字をコピーして使えます。ファイルで保存したいときは、スプレッドシートの「履歴」シートを開いて、メニューの「ファイル」→「ダウンロード」→「カンマ区切り形式（.csv）」を選んでください。</p>'
+    + '<textarea id="csv-area" readonly>'+esc(csvText())+'</textarea>'
+    + '<div class="btns"><button data-act="modal-close">閉じる</button><button class="ok" data-act="copy-csv">コピーする</button></div></div>';
+  $("#modal").hidden = false;
+}
+function copyCsv(){
+  const ta = $("#csv-area");
+  const done = () => toast("コピーしました");
+  const fallback = () => { try{ ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length); if(document.execCommand("copy")) return done(); }catch(e){} toast("文字を長押しして、すべて選択からコピーしてください"); };
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, fallback); else fallback();
+}
+
+/* ---------- QRコード ---------- */
+function openQr(){
+  $("#qr").hidden = false;
+  $("#qr").innerHTML = '<header class="sheet-head"><button class="back" data-act="close-qr">‹ 一覧へ</button><h2>QRコード</h2><button class="ghost" data-act="print">印刷する</button></header><div class="sheet-body" id="qr-body"><div class="empty-msg">読み込み中です…</div></div>';
+  call("qr").then(r => {
+    if(typeof QRCode === "undefined"){ set("#qr-body", '<div class="empty-msg">QRコードを作る部品を読み込めませんでした。通信を確かめて、開き直してください。</div>'); return; }
+    const base = r.custUrl || r.url;
+    const warn = !r.custUrl && (/\/dev$/.test(r.url) || !r.urlFromSheet);
+    let html = (warn ? '<p class="hint qr-note" style="max-width:900px;margin:0 auto 12px;color:var(--danger)">お客様のスマホで開けないことがあります。スプレッドシートの「設定」シートの「このシステムのアドレス」の欄に、デプロイで出た /exec で終わるURLを貼ってから、もう一度開いてください。</p>' : '')
+      + '<p class="hint qr-note" style="max-width:900px;margin:0 auto 12px">各バインダーに貼ってください。「開いて確かめる」で、お客様のスマホに出る画面を開けます。QRコードは何度印刷しても同じものです。</p><div class="qr-grid">';
+    for(let n=1; n<=state.settings.maxNum; n++){
+      const url = base + "?n=" + n + "&k=" + encodeURIComponent(r.keys[n]);
+      html += '<div class="qr-card"><span class="qb">KOKO PLUS</span><span class="qn">'+n+'</span><div class="qimg" id="qimg-'+n+'"></div><span class="qt">読み取ると、滞在時間と料金が見られます</span><a href="'+esc(url)+'" target="_blank" rel="noopener">開いて確かめる</a></div>';
+    }
+    set("#qr-body", html + '</div>');
+    for(let n=1; n<=state.settings.maxNum; n++){
+      new QRCode(document.getElementById("qimg-"+n), {text: base + "?n=" + n + "&k=" + encodeURIComponent(r.keys[n]), width:280, height:280, correctLevel: QRCode.CorrectLevel.M});
+    }
+  }).catch(m => set("#qr-body", '<div class="empty-msg">読み込めませんでした。（'+esc(m)+'）</div>'));
+}
+
+/* ---------- 設定 ---------- */
+function renderSettings(){
+  const s = state.settings;
+  const opt = (v, cur, l) => '<option value="'+v+'"'+(v===cur?' selected':'')+'>'+l+'</option>';
+  $("#settings").innerHTML = '<header class="sheet-head"><button class="back" data-act="close-settings">‹ 一覧へ</button><h2>設定</h2></header>'
+  + '<div class="sheet-body"><div class="form">'
+  + '<div class="fset"><h3>料金</h3>'
+  +   '<div class="fline"><span class="k">基本料金</span>はじめの<input id="s-baseMin" inputmode="numeric" value="'+s.baseMin+'">分で<input id="s-basePrice" inputmode="numeric" value="'+s.basePrice+'">円</div>'
+  +   '<div class="fline"><span class="k">延長料金</span>以降<input id="s-unitMin" inputmode="numeric" value="'+s.unitMin+'">分ごとに<input id="s-unitPrice" inputmode="numeric" value="'+s.unitPrice+'">円</div>'
+  +   '<div class="fline"><span class="k">端数の扱い</span><select id="s-rounding">'+opt("round",s.rounding,"四捨五入")+opt("ceil",s.rounding,"切り上げ")+opt("floor",s.rounding,"切り捨て")+'</select></div>'
+  +   '<div class="fline"><span class="k">最大料金（通常）</span><input id="s-maxNormal" inputmode="numeric" value="'+s.maxNormal+'">円</div>'
+  +   '<div class="fline"><span class="k">最大料金（キャンペーン）</span><input id="s-maxCampaign" inputmode="numeric" value="'+s.maxCampaign+'">円</div>'
+  +   '<div class="fline"><span class="k">キャンペーン</span><select id="s-campaign">'+opt("weekday",s.campaign,"平日だけ使う")+opt("all",s.campaign,"毎日使う")+opt("none",s.campaign,"使わない")+'</select></div>'
+  +   '<div class="example" id="s-example"></div>'
+  + '</div>'
+  + '<button class="primary wide-btn" data-act="save-settings">設定を保存する</button>'
+  + '<div class="fset"><h3>暗証番号</h3><p class="hint" style="margin-top:0">暗証番号を変えるときは、スプレッドシートの「設定」シートの1行目を書きかえてください。変えたあとは、この端末でも新しい番号を入れ直します。</p>'
+  +   '<button class="wide-btn danger-line" data-act="logout">この端末の暗証番号を消す</button></div>'
+  + '<div class="fset"><h3>レシート印刷</h3><p class="hint" style="margin-top:0">今の設定：'+(s.receipt ? '入店のときに印刷する' : '印刷しない')+'。切り替えは、スプレッドシートの「設定」シートの「入店時のレシート印刷」で行います。iPadに「Epson TM Print Assistant」アプリを入れて、プリンターを選んでおく必要があります。</p>'
+  +   '<button class="ghost wide-btn" data-act="test-print">テスト印刷（見本の番号で1枚）</button></div>'
+  + '</div></div>';
+  $("#settings").querySelectorAll("input,select").forEach(el => el.addEventListener("input", renderExample));
+  renderExample();
+}
+function readSettingsForm(){
+  const num = id => parseInt(toHalf($(id).value), 10);
+  const s = {baseMin:num("#s-baseMin"), basePrice:num("#s-basePrice"), unitMin:num("#s-unitMin"), unitPrice:num("#s-unitPrice"),
+    rounding:$("#s-rounding").value, maxNormal:num("#s-maxNormal"), maxCampaign:num("#s-maxCampaign"), campaign:$("#s-campaign").value};
+  const bad = ["baseMin","basePrice","unitMin","unitPrice","maxNormal","maxCampaign"].some(k => !(s[k] >= 0)) || !(s.unitMin > 0);
+  return bad ? null : s;
+}
+function renderExample(){
+  const s = readSettingsForm();
+  if(!s){ set("#s-example", "数字が入っていない欄があります。"); return; }
+  const t = now(), mx = maxFor(t, s);
+  set("#s-example", "今日（"+fmtDay(t)+"）入店した場合の例<br>" + [30,44,45,54,55,80,240].map(m => dur(m)+" → "+yen(calcFee(m, t, s))+"円").join("<br>") + "<br>今日の滞在料金の最大は "+yen(mx.max)+"円 です（注文は別）。");
+}
+function saveSettings(){
+  const s = readSettingsForm();
+  if(!s){ toast("数字が入っていない欄があります"); return; }
+  call("saveSettings", {s}).then(() => toast("設定を保存しました")).catch(fail);
+}
+
+/* ---------- ボタンの動き ---------- */
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if(!b) return;
+  const n = b.dataset.n ? Number(b.dataset.n) : null;
+  switch(b.dataset.act){
+    case "pin-ok": submitPin(); break;
+    case "checkin": checkIn(n); break;
+    case "open": openDetail(n); break;
+    case "close-detail": closeDetail(); break;
+    case "edit-in": $("#in-time").value = fmtTime(state.active[detailN].inAt); $("#d-in-edit").hidden = false; $("#in-time").focus(); break;
+    case "cancel-in": $("#d-in-edit").hidden = true; break;
+    case "save-in": {
+      const r = state.active[detailN], v = $("#in-time").value; if(!r || !v) break;
+      const t = timeOnSameDay(r.inAt, v);
+      if(t > now()){ toast("入店時刻が今より後になっています"); break; }
+      const prev = clone(r); r.inAt = t; $("#d-in-edit").hidden = true; renderTop();
+      saveRec(detailN, prev, "入店時刻を "+v+" に訂正しました"); break;
+    }
+    case "edit-fee": $("#fee-in").value = feeOf(state.active[detailN], now()); $("#d-fee-edit").hidden = false; $("#fee-in").focus(); break;
+    case "cancel-fee": $("#d-fee-edit").hidden = true; break;
+    case "save-fee": {
+      const v = parseInt(toHalf($("#fee-in").value), 10), r = state.active[detailN];
+      if(!(v >= 0)){ toast("金額を数字で入れてください"); break; }
+      const prev = clone(r); r.feeOverride = v; $("#d-fee-edit").hidden = true;
+      saveRec(detailN, prev, "滞在料金を "+yen(v)+"円 に訂正しました"); break;
+    }
+    case "fee-auto": { const r = state.active[detailN], prev = clone(r); r.feeOverride = null; saveRec(detailN, prev, "滞在料金を自動計算に戻しました"); break; }
+    case "add-order": addOrder(); break;
+    case "del-order": delOrder(b.dataset.id); break;
+    case "checkout": openCheckout(n); break;
+    case "checkout-ok": confirmCheckout(); break;
+    case "modal-close": closeModal(); break;
+    case "cust": openCust(n); break;
+    case "close-cust": closeCust(); break;
+    case "open-history": hv.anchor = Date.now(); $("#history").hidden = false; loadHistory(); break;
+    case "close-history": $("#history").hidden = true; break;
+    case "hmode": hv.mode = b.dataset.mode; loadHistory(); break;
+    case "hprev": shift(-1); break;
+    case "hnext": shift(1); break;
+    case "htoday": hv.anchor = Date.now(); loadHistory(); break;
+    case "hgo": hv.mode = b.dataset.mode; hv.anchor = Number(b.dataset.t); loadHistory(); break;
+    case "csv": if(hvRecs) openCsv(); break;
+    case "copy-csv": copyCsv(); break;
+    case "open-qr": openQr(); break;
+    case "close-qr": $("#qr").hidden = true; break;
+    case "print": window.print(); break;
+    case "open-settings": if(state.settings){ renderSettings(); $("#settings").hidden = false; } break;
+    case "close-settings": $("#settings").hidden = true; break;
+    case "save-settings": saveSettings(); break;
+    case "reprint": { const r = state.active[detailN]; if(r && r.vk) printReceipt(detailN, r.inAt, r.vk); else toast("この来店にはレシート用のQRコードがありません"); break; }
+    case "test-print": printReceipt(0, now(), "test00000000"); break;
+    case "logout": try{ localStorage.removeItem(PIN_KEY); }catch(err){} PIN = ""; $("#settings").hidden = true; showPin(""); break;
+    case "undo": if(undoFn){ const f = undoFn; hideToast(); f().then(() => toast("取り消しました")).catch(fail); } break;
+  }
+});
+$("#pin-in").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); submitPin(); } });
+$("#modal").addEventListener("click", e => { if(e.target.id === "modal") closeModal(); });
+$("#cust").addEventListener("click", e => { if(e.target.id === "cust") closeCust(); });
+document.addEventListener("visibilitychange", () => { if(!document.hidden && PIN && pending === 0) refresh(); });
+
+renderTop();
+if(PIN) refresh(); else showPin("");
+setInterval(() => {
+  renderTop();
+  if(detailN != null) updateDetailLive();
+  renderCustIfOpen();
+  if(coN != null) updateCheckout();
+}, 15000);
+setInterval(() => { if(PIN && pending === 0 && $("#pin").hidden && $("#modal").hidden) refresh(); }, 30000);
+</script>
+<? } ?>
+
+</body>
+</html>
