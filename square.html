@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>KOKO PLUS 会計</title>
+<style>
+:root{
+  --bg:#EDF1EC; --surface:#FFFFFF; --surface-2:#F6F8F5; --ink:#1D2925; --muted:#65706B; --line:#D3DAD4;
+  --pine:#2D5A4B; --pine-ink:#FFFFFF; --pine-soft:#DCE8E0; --pine-text:#245043;
+  --walnut:#85552F; --walnut-soft:#F2E8DD;
+  --danger:#B03C32; --danger-soft:#F7E2DF;
+  --dim:rgba(20,30,26,.45);
+  --num:"Barlow Condensed","Hiragino Sans","Hiragino Kaku Gothic ProN",system-ui,sans-serif;
+  --jp:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#131917; --surface:#1C2421; --surface-2:#18201D; --ink:#E5EBE8; --muted:#97A39D; --line:#2E3934;
+    --pine:#3D7564; --pine-ink:#FFFFFF; --pine-soft:#22382F; --pine-text:#8FCFB8;
+    --walnut:#D9A676; --walnut-soft:#2E251D;
+    --danger:#E0786D; --danger-soft:#3A2220;
+    --dim:rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131917; --surface:#1C2421; --surface-2:#18201D; --ink:#E5EBE8; --muted:#97A39D; --line:#2E3934;
+  --pine:#3D7564; --pine-ink:#FFFFFF; --pine-soft:#22382F; --pine-text:#8FCFB8;
+  --walnut:#D9A676; --walnut-soft:#2E251D;
+  --danger:#E0786D; --danger-soft:#3A2220;
+  --dim:rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--bg);scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--jp);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation}
+:focus-visible{outline:3px solid var(--walnut);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* ヘッダー */
+.top{max-width:1240px;margin:0 auto;padding:14px 16px 24px}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.brand{display:flex;align-items:baseline;gap:8px;margin-right:auto}
+.brand b{font-size:20px;letter-spacing:.04em}
+.brand small{color:var(--muted);font-size:13px}
+.clock{font-size:17px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.stat{display:flex;align-items:baseline;gap:4px;font-size:13px;color:var(--muted)}
+.stat strong{font-family:var(--num);font-size:26px;color:var(--ink);line-height:1;font-weight:600}
+.navbtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 16px;font-size:15px}
+
+/* 番号のグリッド */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (min-width:600px){.grid{grid-template-columns:repeat(5,1fr)}}
+@media (min-width:980px){.grid{grid-template-columns:repeat(6,1fr)}}
+.tile{position:relative;min-height:124px;border-radius:14px;padding:14px 12px 12px;display:flex;flex-direction:column;text-align:left}
+.tile::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:34px;height:5px;border-radius:0 0 5px 5px;background:var(--line)}
+.tile .no{font-family:var(--num);font-weight:600;font-size:46px;line-height:.95}
+.tile.empty{background:var(--surface);border:1px solid var(--line)}
+.tile.empty .no{color:var(--muted)}
+.tile.empty .state{font-size:13px;color:var(--muted);margin:2px 0 auto}
+.btn-in{margin-top:10px;width:100%;border:0;border-radius:10px;background:var(--pine-soft);color:var(--pine-text);font-weight:700;font-size:17px;padding:10px 0}
+.btn-in:active{background:var(--pine);color:var(--pine-ink)}
+.tile.busy{background:var(--pine);color:var(--pine-ink);border:1px solid var(--pine)}
+.tile.busy::before{background:rgba(255,255,255,.35)}
+.tile.busy .stay{font-size:19px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums}
+.tile.busy .since{font-size:13px;opacity:.85;font-variant-numeric:tabular-nums;margin-bottom:auto}
+.tile.busy .more{align-self:flex-end;margin-top:6px;font-size:13px;border:1px solid rgba(255,255,255,.5);border-radius:999px;padding:2px 12px}
+.foot-note{margin-top:18px;font-size:13px;color:var(--muted);text-align:center}
+
+/* シート（全画面） */
+.sheet{position:fixed;top:0;right:0;bottom:0;left:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.sheet-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface)}
+.sheet-head h2{margin:0 auto 0 0;font-size:20px;display:flex;align-items:baseline;gap:4px}
+.sheet-head .no-big{font-family:var(--num);font-size:40px;line-height:1;font-weight:600}
+.back{border:0;background:none;color:var(--pine-text);font-size:16px;padding:8px 4px;font-weight:600}
+.tag{background:var(--pine-soft);color:var(--pine-text);border-radius:999px;padding:3px 12px;font-size:13px;font-weight:700}
+.ghost{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-size:15px}
+.sheet-body{flex:1;overflow:auto;padding:16px;-webkit-overflow-scrolling:touch}
+.sheet-body > .wrap{max-width:1100px;margin:0 auto}
+.sheet-foot{display:flex;align-items:center;gap:16px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--surface)}
+
+/* 詳細画面 */
+.detail-grid{display:grid;gap:14px;max-width:1100px;margin:0 auto}
+@media (min-width:820px){.detail-grid{grid-template-columns:1fr 1.15fr}.detail-grid .note{grid-column:1 / -1}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.panel h3{margin:0 0 10px;font-size:15px;color:var(--muted);font-weight:600}
+.panel h3 + * {margin-top:0}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .lbl{color:var(--muted);font-size:14px;min-width:6.5em}
+.row .val{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;margin-right:auto}
+.row .val.money{color:var(--walnut)}
+.row.edit{gap:8px;background:var(--surface-2);border-radius:10px;padding:10px;border:0;margin:4px 0}
+.row.edit input{flex:1;min-width:0;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:18px}
+.mini{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-size:14px;white-space:nowrap}
+.mini.primary,.primary{background:var(--pine);color:var(--pine-ink);border:1px solid var(--pine)}
+.hint{font-size:13px;color:var(--muted);padding:8px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.proj{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:8px 0 0;padding:12px;border-radius:10px;background:var(--walnut-soft);font-size:15px}
+.proj dt{color:var(--muted)}
+.proj dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.addrow{display:grid;grid-template-columns:1fr 1.3fr;gap:8px;margin-bottom:16px}
+.addrow label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.addrow input{padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:20px;color:var(--ink);width:100%}
+.addrow button{grid-column:1 / -1;border-radius:10px;padding:12px 0;font-size:17px;font-weight:700}
+.orders{list-style:none;margin:0;padding:0}
+.orders li{display:grid;grid-template-columns:auto auto 1fr auto auto;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.orders li.none{display:block;color:var(--muted);font-size:14px}
+.orders .ono{font-size:18px;color:var(--walnut)}
+.orders .otime{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.orders .omemo{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.orders .omemo.blank{color:var(--muted)}
+.orders .oamt{font-weight:700;font-variant-numeric:tabular-nums}
+.row.sum .val{font-size:20px}
+textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:16px;resize:vertical}
+.total{display:flex;align-items:baseline;gap:12px;margin-right:auto}
+.total span{color:var(--muted);font-size:15px}
+.total strong{font-size:34px;color:var(--walnut);font-variant-numeric:tabular-nums}
+.total strong small{font-size:18px;margin-left:2px}
+.danger-btn{border:0;background:var(--danger);color:#fff;border-radius:12px;padding:14px 28px;font-size:18px;font-weight:700}
+
+/* モーダル */
+.overlay{position:fixed;top:0;right:0;bottom:0;left:0;z-index:40;background:var(--dim);display:flex;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.box{background:var(--surface);border-radius:16px;width:100%;max-width:440px;max-height:100%;overflow:auto;padding:20px}
+.box h3{margin:0 0 12px;font-size:19px}
+.box p{margin:0 0 12px;color:var(--muted);font-size:15px}
+.box .row .val{font-size:20px}
+.box input[type=time]{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:20px}
+.btns{display:flex;gap:10px;margin-top:16px}
+.btns button{flex:1;border-radius:12px;padding:13px 0;font-size:16px;font-weight:700;border:1px solid var(--line);background:var(--surface)}
+.btns .go{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btns .ok{background:var(--pine);color:var(--pine-ink);border-color:var(--pine)}
+.err{color:var(--danger);font-size:14px;min-height:1.4em;margin-top:6px}
+.box textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;height:220px}
+
+/* お客様画面 */
+.phone{width:100%;max-width:380px;max-height:100%;overflow:auto;background:var(--surface);border-radius:28px;padding:22px 20px;border:8px solid var(--ink)}
+.c-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.c-head b{font-size:16px;letter-spacing:.04em}
+.c-head span{font-size:13px;color:var(--muted)}
+.c-no{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.c-no strong{font-family:var(--num);font-size:56px;line-height:1;font-weight:600}
+.c-no em{font-style:normal;font-size:18px}
+.c-rows{display:grid;grid-template-columns:1fr auto;gap:10px 12px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.c-rows dt{color:var(--muted)}
+.c-rows dd{margin:0;text-align:right;font-weight:700}
+.c-total{display:flex;justify-content:space-between;align-items:baseline;background:var(--walnut-soft);border-radius:12px;padding:14px;margin:14px 0}
+.c-total strong{font-size:32px;color:var(--walnut);font-variant-numeric:tabular-nums}
+.c-small{font-size:13px;color:var(--muted);margin:4px 0}
+.c-close{margin-top:16px;width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:12px;padding:12px;font-size:15px}
+.c-empty{padding:30px 0;text-align:center;color:var(--muted)}
+
+/* 履歴・設定 */
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:9px 20px;font-size:15px}
+.seg button[aria-pressed="true"]{background:var(--pine);color:var(--pine-ink);font-weight:700}
+.hnav{display:flex;align-items:center;gap:10px;margin:14px 0}
+.hnav strong{font-size:20px;min-width:9em;text-align:center}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+@media (min-width:700px){.cards{grid-template-columns:repeat(4,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.card span{display:block;font-size:13px;color:var(--muted)}
+.card strong{font-size:24px;font-variant-numeric:tabular-nums}
+.card.main strong{color:var(--walnut)}
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:15px;font-variant-numeric:tabular-nums}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:13px;color:var(--muted);font-weight:600;background:var(--surface-2)}
+th:first-child,td:first-child{text-align:left}
+td.memo{text-align:left;white-space:normal;min-width:10em;color:var(--muted);font-size:13px}
+tr.link{cursor:pointer}
+tr.link:active{background:var(--pine-soft)}
+.empty-msg{padding:24px;text-align:center;color:var(--muted)}
+.form{display:grid;gap:12px;max-width:640px;margin:0 auto}
+.fset{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.fset h3{margin:0 0 12px;font-size:16px}
+.fline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0}
+.fline .k{min-width:8.5em;color:var(--muted);font-size:14px}
+.fline input,.fline select{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:17px}
+.fline input{width:6em;text-align:right}
+.example{margin-top:8px;padding:12px;border-radius:10px;background:var(--walnut-soft);font-size:14px;line-height:1.8}
+.wide-btn{width:100%;border-radius:12px;padding:13px 0;font-size:16px;font-weight:700}
+.danger-line{border:1px solid var(--danger);color:var(--danger);background:var(--surface)}
+
+/* トースト */
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--bg);border-radius:12px;padding:12px 14px 12px 18px;display:flex;align-items:center;gap:14px;font-size:15px;max-width:calc(100% - 32px)}
+.toast button{border:0;background:var(--bg);color:var(--ink);border-radius:8px;padding:7px 12px;font-weight:700;font-size:14px}
+
+@media (prefers-reduced-motion: no-preference){
+  .sheet{animation:up .18s ease-out}
+  @keyframes up{from{transform:translateY(16px);opacity:.4}to{transform:none;opacity:1}}
+}
+/* Google版で追加 */
+html{height:100%;overflow:hidden}
+body{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.sheet-body{-webkit-overflow-scrolling:touch}
+.c-orders{list-style:none;margin:0;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;font-variant-numeric:tabular-nums}
+.c-orders li{display:grid;grid-template-columns:auto auto 1fr auto;gap:8px;padding:3px 0;color:var(--muted)}
+.c-orders .m{color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-orders .a{color:var(--ink)}
+.c-review{display:block;margin-top:12px;text-align:center;color:var(--muted);font-size:14px;padding:8px;text-decoration:underline;text-underline-offset:3px}
+.c-survey{display:block;margin-top:16px;text-align:center;border:1px solid var(--pine);color:var(--pine-text);background:var(--pine-soft);border-radius:12px;padding:13px;font-weight:700;text-decoration:none}
+.pinbox input{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:28px;letter-spacing:.3em;text-align:center}
+.loading{grid-column:1 / -1;padding:40px;text-align:center;color:var(--muted)}
+.tile.pending{opacity:.7}
+.qr-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:900px;margin:0 auto}
+@media (min-width:700px){.qr-grid{grid-template-columns:repeat(3,1fr)}}
+.qr-card{background:#fff;color:#1D2925;border:1px solid #D3DAD4;border-radius:12px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;break-inside:avoid;page-break-inside:avoid}
+.qr-card .qn{font-family:var(--num);font-size:40px;font-weight:600;line-height:1}
+.qr-card .qb{font-size:12px;letter-spacing:.06em}
+.qr-card .qt{font-size:11px;text-align:center;color:#4b5550}
+.qr-card .qimg{width:140px;height:140px}
+.qr-card .qimg img,.qr-card .qimg canvas{width:140px!important;height:140px!important}
+.qr-card a{font-size:12px;color:#245043}
+.cwrap{max-width:440px;margin:0 auto;padding:20px 16px 32px}
+.cpanel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px 20px}
+@media print{
+  html,body{height:auto;overflow:visible}
+  body{background:#fff}
+  .top,.sheet:not(#qr),.overlay,.toast{display:none!important}
+  #qr{position:static;display:block;background:#fff;padding:0}
+  #qr .sheet-head,.qr-card a,.qr-note{display:none!important}
+  #qr .sheet-body{overflow:visible;padding:0}
+  .qr-grid{grid-template-columns:repeat(3,1fr);gap:8mm}
+}
+
+.big{font-size:22px;font-weight:700;margin:8px 0 12px;text-align:center}
+.okc{color:var(--pine-text)} .ngc{color:var(--danger)}
+</style>
+</head>
+<body>
+<main class="cwrap"><div class="cpanel" id="p"><div class="c-head"><b>KOKO PLUS</b><span>Square会計</span></div><div class="c-empty">確認しています…</div></div></main>
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzPAhz7Y9tarTn3wgTSmjYNReyPDPDqyDuPhdjax4nF1WVwmqTSIZpo2pnp95pc_Q0/exec";
+const head = '<div class="c-head"><b>KOKO PLUS</b><span>Square会計</span></div>';
+function show(cls, title, body){ document.getElementById("p").innerHTML = head + '<p class="big '+cls+'">'+title+'</p><p class="c-small" style="text-align:center">'+body+'</p>'; }
+const back = "受付画面のタブに戻ってください。このタブは閉じて大丈夫です。";
+let d = {};
+try { d = JSON.parse(new URLSearchParams(location.search).get("data") || "{}"); } catch(e) {}
+let st = {};
+try { st = JSON.parse(d.state || "{}"); } catch(e) {}
+if(d.status !== "ok"){
+  show("ngc", "会計は完了していません", "Squareでの会計がキャンセルされたか、うまくいきませんでした（" + (d.error_code || "キャンセル") + "）。<br>退店はまだ記録されていません。受付画面から、もう一度会計してください。");
+} else if(!st.n || !st.r){
+  show("ngc", "会計は完了しました", "ただ、どの番号の会計かわからなかったため、退店は記録されていません。受付画面で「退店を確定する」を押してください。");
+} else {
+  fetch(GAS_URL + "?api=pay&n=" + encodeURIComponent(st.n) + "&r=" + encodeURIComponent(st.r) + "&o=" + encodeURIComponent(st.o || ""), {credentials:"omit", cache:"no-store"})
+    .then(r => r.json())
+    .then(x => {
+      if(x.ok) show("okc", st.n + "番 会計と退店が完了しました", "合計 " + Number(x.total).toLocaleString("ja-JP") + "円。" + back);
+      else if(x.msg === "done") show("okc", "会計は完了しました", st.n + "番は、すでに退店が記録されています。" + back);
+      else show("ngc", "会計は完了しました", "退店の記録がうまくいきませんでした。受付画面で「退店を確定する」を押してください。");
+    })
+    .catch(() => show("ngc", "会計は完了しました", "通信がうまくいかず、退店は記録されていません。受付画面で「退店を確定する」を押してください。"));
+}
+</script>
+</body>
+</html>
