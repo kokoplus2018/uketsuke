@@ -261,7 +261,8 @@ function ordersListHTML(orders, mode){
   if(mode === "none" || !orders || !orders.length) return "";
   return '<ul class="c-orders">' + orders.map((o,i) => '<li><span>'+(i<20?String.fromCharCode(0x2460+i):"("+(i+1)+")")+'</span><span class="t">'+fmtTime(o.at)+'</span><span class="m">'+(mode==="memo" && o.memo ? esc(o.memo) : "")+'</span><span class="a">'+yen(o.amount)+'円</span></li>').join("") + '</ul>';
 }
-function calcFee(min, inAt, s){
+function tierMax(max, s, tier){ const d = tier === "a" ? Number(s.discA || 0) : tier === "b" ? Number(s.discB || 0) : 0; return d > 0 ? Math.round(max * (100 - d) / 100) : max; }
+function calcFee(min, inAt, s, tier){
   let p;
   if(min <= s.baseMin) p = Number(s.basePrice);
   else {
@@ -271,6 +272,8 @@ function calcFee(min, inAt, s){
   }
   const m = maxFor(inAt, s).max;
   if(m > 0) p = Math.min(p, m);
+  const d = tier === "a" ? Number(s.discA || 0) : tier === "b" ? Number(s.discB || 0) : 0;
+  if(d > 0) p = Math.round(p * (100 - d) / 100);
   return p;
 }
 
@@ -297,14 +300,14 @@ function renderC(){
     body = '<div class="c-no"><strong>'+C.n+'</strong><em>番</em></div><div class="c-empty">現在、この番号のご利用はありません。</div>';
   } else {
     const t = now(), min = minutesOf(r.inAt, t);
-    const fee = r.feeOverride != null ? r.feeOverride : calcFee(min, r.inAt, s);
+    const fee = r.feeOverride != null ? r.feeOverride : calcFee(min, r.inAt, s, r.tier);
     const mx = maxFor(r.inAt, s);
     body = '<div class="c-no"><strong>'+C.n+'</strong><em>番</em><span class="tag">ご利用中</span></div>'
       + '<dl class="c-rows"><dt>入店時刻</dt><dd>'+fmtTime(r.inAt)+'</dd><dt>滞在時間</dt><dd>'+dur(min)+'</dd>'
       + '<dt>滞在料金</dt><dd>'+yen(fee)+'円</dd><dt>注文金額</dt><dd>'+yen(r.orderTotal)+'円</dd></dl>'
       + ordersListHTML(r.orders, s.breakdown)
       + '<div class="c-total"><span>合計金額</span><strong>'+yen(fee + r.orderTotal)+'円</strong></div>'
-      + (r.feeOverride == null ? '<p class="c-small">滞在料金は最大 '+yen(mx.max)+'円です'+(mx.campaign ? '（平日キャンペーン中／通常 '+yen(s.maxNormal)+'円）' : '')+'。ご注文は別にかかります。</p>' : '')
+      + (r.feeOverride == null ? '<p class="c-small">滞在料金は最大 '+yen(tierMax(mx.max, s, r.tier))+'円です'+(mx.campaign ? '（平日キャンペーン中／通常 '+yen(s.maxNormal)+'円）' : '')+'。ご注文は別にかかります。</p>' : '')
       + '<p class="c-small">料金は目安です。わからないことはスタッフにお声がけください。</p>';
   }
   if(s.surveyUrl) body += '<a class="c-survey" href="'+esc(s.surveyUrl)+'" target="_blank" rel="noopener">かんたんアンケートに答える（30秒）</a>';
