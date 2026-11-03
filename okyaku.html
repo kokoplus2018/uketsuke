@@ -275,7 +275,7 @@ function calcFee(min, inAt, s, tier, drinks){
   }
   const m = maxFor(inAt, s).max;
   if(m > 0) p = Math.min(p, m);
-  if(drinks > 0) p = Math.max(0, p - Number(s.drinkCredit || 0) * drinks);
+  if(drinks > 0) p = Math.max(0, p - Math.round(Number(s.drinkMin || 0) / s.unitMin * s.unitPrice) * drinks);
   const d = tier === "a" ? Number(s.discA || 0) : tier === "b" ? Number(s.discB || 0) : 0;
   if(d > 0) p = Math.round(p * (100 - d) / 100);
   return p;
