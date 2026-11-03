@@ -252,7 +252,9 @@ const set = (sel, html) => { const el = $(sel); if(el) el.innerHTML = html; };
 const minutesOf = (a, b) => Math.max(0, Math.floor((b - a) / 60000));
 let skew = 0;
 const now = () => Date.now() + skew;
+function effS(s, inAt){ if(!s || !s.next || inAt < s.next.from) return s; const e = Object.assign({}, s, s.next); delete e.next; return e; }
 function maxFor(inAt, s){
+  s = effS(s, inAt);
   const day = new Date(inAt).getDay(), weekday = day>=1 && day<=5;
   if(s.campaign==="all" || (s.campaign==="weekday" && weekday)) return {max:Number(s.maxCampaign), campaign:true};
   return {max:Number(s.maxNormal), campaign:false};
@@ -262,7 +264,8 @@ function ordersListHTML(orders, mode){
   return '<ul class="c-orders">' + orders.map((o,i) => '<li><span>'+(i<20?String.fromCharCode(0x2460+i):"("+(i+1)+")")+'</span><span class="t">'+fmtTime(o.at)+'</span><span class="m">'+(mode==="memo" && o.memo ? esc(o.memo) : "")+'</span><span class="a">'+yen(o.amount)+'円</span></li>').join("") + '</ul>';
 }
 function tierMax(max, s, tier){ const d = tier === "a" ? Number(s.discA || 0) : tier === "b" ? Number(s.discB || 0) : 0; return d > 0 ? Math.round(max * (100 - d) / 100) : max; }
-function calcFee(min, inAt, s, tier){
+function calcFee(min, inAt, s, tier, drinks){
+  s = effS(s, inAt);
   let p;
   if(min <= s.baseMin) p = Number(s.basePrice);
   else {
@@ -272,6 +275,7 @@ function calcFee(min, inAt, s, tier){
   }
   const m = maxFor(inAt, s).max;
   if(m > 0) p = Math.min(p, m);
+  if(drinks > 0) p = Math.max(0, p - Number(s.drinkCredit || 0) * drinks);
   const d = tier === "a" ? Number(s.discA || 0) : tier === "b" ? Number(s.discB || 0) : 0;
   if(d > 0) p = Math.round(p * (100 - d) / 100);
   return p;
@@ -300,14 +304,14 @@ function renderC(){
     body = '<div class="c-no"><strong>'+C.n+'</strong><em>番</em></div><div class="c-empty">現在、この番号のご利用はありません。</div>';
   } else {
     const t = now(), min = minutesOf(r.inAt, t);
-    const fee = r.feeOverride != null ? r.feeOverride : calcFee(min, r.inAt, s, r.tier);
+    const fee = r.feeOverride != null ? r.feeOverride : calcFee(min, r.inAt, s, r.tier, r.drinks || 0);
     const mx = maxFor(r.inAt, s);
     body = '<div class="c-no"><strong>'+C.n+'</strong><em>番</em><span class="tag">ご利用中</span></div>'
       + '<dl class="c-rows"><dt>入店時刻</dt><dd>'+fmtTime(r.inAt)+'</dd><dt>滞在時間</dt><dd>'+dur(min)+'</dd>'
       + '<dt>滞在料金</dt><dd>'+yen(fee)+'円</dd><dt>注文金額</dt><dd>'+yen(r.orderTotal)+'円</dd></dl>'
       + ordersListHTML(r.orders, s.breakdown)
       + '<div class="c-total"><span>合計金額</span><strong>'+yen(fee + r.orderTotal)+'円</strong></div>'
-      + (r.feeOverride == null ? '<p class="c-small">滞在料金は最大 '+yen(tierMax(mx.max, s, r.tier))+'円です'+(mx.campaign ? '（平日キャンペーン中／通常 '+yen(s.maxNormal)+'円）' : '')+'。ご注文は別にかかります。</p>' : '')
+      + (r.feeOverride == null ? '<p class="c-small">滞在料金は最大 '+yen(tierMax(mx.max, s, r.tier))+'円です'+(mx.campaign ? '（キャンペーン中／通常 '+yen(s.maxNormal)+'円）' : '')+'。ご注文は別にかかります。</p>' : '')
       + '<p class="c-small">料金は目安です。わからないことはスタッフにお声がけください。</p>';
   }
   if(s.surveyUrl) body += '<a class="c-survey" href="'+esc(s.surveyUrl)+'" target="_blank" rel="noopener">かんたんアンケートに答える（30秒）</a>';
