@@ -233,6 +233,10 @@ body{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
   #qr .sheet-body{overflow:visible;padding:0}
   .qr-grid{grid-template-columns:repeat(3,1fr);gap:8mm}
 }
+.c-guide{margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:13px;color:var(--ink)}
+.c-guide b{font-size:14px}
+.c-guide ul{margin:6px 0 0;padding-left:1.2em;color:var(--muted)}
+.c-guide li{margin:3px 0}
 </style>
 </head>
 <body>
@@ -264,21 +268,51 @@ function ordersListHTML(orders, mode){
   return '<ul class="c-orders">' + orders.map((o,i) => '<li><span>'+(i<20?String.fromCharCode(0x2460+i):"("+(i+1)+")")+'</span><span class="t">'+fmtTime(o.at)+'</span><span class="m">'+(mode==="memo" && o.memo ? esc(o.memo) : "")+'</span><span class="a">'+yen(o.amount)+'円</span></li>').join("") + '</ul>';
 }
 function tierMax(max, s, tier){ const d = tier === "a" ? Number(s.discA || 0) : tier === "b" ? Number(s.discB || 0) : 0; return d > 0 ? Math.round(max * (100 - d) / 100) : max; }
-function calcFee(min, inAt, s, tier, drinks){
-  s = effS(s, inAt);
-  let p;
-  if(min <= s.baseMin) p = Number(s.basePrice);
-  else {
-    const u = (min - s.baseMin) / s.unitMin;
-    const k = s.rounding==="ceil" ? Math.ceil(u) : s.rounding==="floor" ? Math.floor(u) : Math.round(u);
-    p = Number(s.basePrice) + k * Number(s.unitPrice);
+// お客様向けの料金のご案内
+function priceGuideHTML(s0, inAt, tier){
+  if(!s0) return "";
+  const s = effS(s0, inAt || Date.now());
+  const capMin = m => Number(s.baseMin) + Math.max(0, (m - Number(s.basePrice)) / Number(s.unitPrice) * Number(s.unitMin));
+  const mx = maxFor(inAt || Date.now(), s0);
+  const lines = [];
+  const upto = s.rounding === "round" ? "（"+(Number(s.baseMin) + Math.ceil(Number(s.unitMin)/2) - 1)+"分まで）" : "";
+  lines.push("はじめの"+dur(Number(s.baseMin))+upto+" "+yen(s.basePrice)+"円" + (Number(s.drinkMin) ? "、またはドリンク1杯（ドリンク1杯で"+dur(Number(s.drinkMin))+"ぶん）" : ""));
+  lines.push("以降"+dur(Number(s.unitMin))+"ごとに "+yen(s.unitPrice)+"円");
+  let cap = "1日最大料金 "+dur(capMin(Number(s.maxNormal)))+"相当（"+yen(s.maxNormal)+"円）";
+  if(mx.campaign){
+    let until = "";
+    if(s0.next && s0.next.from > (inAt || Date.now())){ const d = new Date(s0.next.from - 86400000); until = (d.getMonth()+1)+"月"+d.getDate()+"日まで"; }
+    cap += "。" + (until ? until + "の" : "") + "キャンペーン中は "+dur(capMin(mx.max))+"相当（"+yen(mx.max)+"円）";
   }
+  lines.push(cap);
+  if(tier === "a" || tier === "b") lines.push((tier === "a" ? "会員・学生" : "メンバー")+"の方は、滞在料金が"+(tier === "a" ? s.discA : s.discB)+"%引きです（ドリンク・ご注文は別）");
+  return '<div class="c-guide"><b>料金のご案内</b><ul>' + lines.map(x => '<li>'+esc(x)+'</li>').join("") + '</ul></div>';
+}
+function calcFee(min, inAt, s, tier, drinks, people){
+  s = effS(s, inAt);
+  people = Math.max(1, Number(people) || 1);
+  const rnd = u => s.rounding==="ceil" ? Math.ceil(u) : s.rounding==="floor" ? Math.floor(u) : Math.round(u);
   const m = maxFor(inAt, s).max;
-  if(m > 0) p = Math.min(p, m);
-  if(drinks > 0) p = Math.max(0, p - Math.round(Number(s.drinkMin || 0) / s.unitMin * s.unitPrice) * drinks);
+  let p;
+  if(!(drinks > 0)){
+    // ドリンクなし：はじめの○分○円、以降○分ごとに○円（上限あり）
+    p = min <= s.baseMin ? Number(s.basePrice) : Number(s.basePrice) + rnd((min - s.baseMin) / s.unitMin) * Number(s.unitPrice);
+    if(m > 0) p = Math.min(p, m);
+    p = p * people;
+  } else {
+    // ドリンクあり：ドリンク1杯＝滞在○分。残りの時間を○分ごとに○円で数える
+    const r = chargeMinutes(min, s, m, drinks, people);
+    p = rnd(r / s.unitMin) * Number(s.unitPrice);
+  }
   const d = tier === "a" ? Number(s.discA || 0) : tier === "b" ? Number(s.discB || 0) : 0;
   if(d > 0) p = Math.round(p * (100 - d) / 100);
   return p;
+}
+// 料金のかかる時間（ドリンクで含まれる時間を引いたあと）。上限は「最大料金ぶんの時間」
+function capMinutes(s, m){ return m > 0 ? Number(s.baseMin) + Math.max(0, (m - Number(s.basePrice)) / Number(s.unitPrice) * Number(s.unitMin)) : Infinity; }
+function chargeMinutes(min, s, m, drinks, people){
+  const stay = Math.min(min, capMinutes(s, m)) * (people || 1);
+  return Math.max(0, stay - Number(s.drinkMin || 0) * (drinks || 0));
 }
 
 /* ↓↓↓ ここに「設定」シートB12のアドレス（/exec で終わるもの）を貼ります ↓↓↓ */
@@ -304,15 +338,15 @@ function renderC(){
     body = '<div class="c-no"><strong>'+C.n+'</strong><em>番</em></div><div class="c-empty">現在、この番号のご利用はありません。</div>';
   } else {
     const t = now(), min = minutesOf(r.inAt, t);
-    const fee = r.feeOverride != null ? r.feeOverride : calcFee(min, r.inAt, s, r.tier, r.drinks || 0);
+    const fee = r.feeOverride != null ? r.feeOverride : calcFee(min, r.inAt, s, r.tier, r.drinks || 0, r.people || 1);
     const mx = maxFor(r.inAt, s);
-    body = '<div class="c-no"><strong>'+C.n+'</strong><em>番</em><span class="tag">ご利用中</span></div>'
+    body = '<div class="c-no"><strong>'+C.n+'</strong><em>番</em><span class="tag">ご利用中</span>'+((r.people||1) > 1 ? '<em>'+r.people+'名</em>' : '')+'</div>'
       + '<dl class="c-rows"><dt>入店時刻</dt><dd>'+fmtTime(r.inAt)+'</dd><dt>滞在時間</dt><dd>'+dur(min)+'</dd>'
       + '<dt>滞在料金</dt><dd>'+yen(fee)+'円</dd><dt>注文金額</dt><dd>'+yen(r.orderTotal)+'円</dd></dl>'
       + ordersListHTML(r.orders, s.breakdown)
       + '<div class="c-total"><span>合計金額</span><strong>'+yen(fee + r.orderTotal)+'円</strong></div>'
       + (r.feeOverride == null ? '<p class="c-small">滞在料金は最大 '+yen(tierMax(mx.max, s, r.tier))+'円です'+(mx.campaign ? '（キャンペーン中／通常 '+yen(s.maxNormal)+'円）' : '')+'。ご注文は別にかかります。</p>' : '')
-      + '<p class="c-small">料金は目安です。わからないことはスタッフにお声がけください。</p>';
+      + '<p class="c-small">料金は目安です。わからないことはスタッフにお声がけください。</p>' + priceGuideHTML(s, r.inAt, r.tier);
   }
   if(s.surveyUrl) body += '<a class="c-survey" href="'+esc(s.surveyUrl)+'" target="_blank" rel="noopener">かんたんアンケートに答える（30秒）</a>';
   if(s.reviewUrl) body += '<a class="c-review" href="'+esc(s.reviewUrl)+'" target="_blank" rel="noopener">よろしければ、Googleマップに口コミをお寄せください</a>';
