@@ -238,9 +238,88 @@ body{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
 <body>
 <main class="cwrap"><div class="cpanel" id="p"><div class="c-head"><b>KOKO PLUS</b><span>Square会計</span></div><div class="c-empty">確認しています…</div></div></main>
 <script>
+
+const pad = n => String(n).padStart(2,"0");
+const yen = n => Number(n||0).toLocaleString("ja-JP");
+const fmtTime = ms => { const d = new Date(ms); return pad(d.getHours())+":"+pad(d.getMinutes()); };
+const dur = min => { if(min < 60) return min+"分"; const h = Math.floor(min/60), m = min%60; return m ? h+"時間"+m+"分" : h+"時間"; };
+const xmlEsc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]));
+const catShort = c => String(c || "").replace(/^\d+\s*/, "").replace(/（.*?）/g, "");
+let RS = null, RCPT = null;
+const RC_COLS = 32;   // 1行に入る半角の文字数（58mmの紙でも段がずれないように少なめ）
+const rcWidth = t => Array.from(String(t)).reduce((w, c) => w + (c.charCodeAt(0) > 0xff ? 2 : 1), 0);
+function rcCut(t, w){ let out = "", n = 0; for(const c of Array.from(String(t))){ const cw = c.charCodeAt(0) > 0xff ? 2 : 1; if(n + cw > w) break; out += c; n += cw; } return out; }
+function rcLine(left, right, cols){
+  cols = cols || RC_COLS;
+  right = String(right); const rw = rcWidth(right);
+  const l = rcCut(left, cols - rw - 1);
+  return l + " ".repeat(Math.max(1, cols - rcWidth(l) - rw)) + right;
+}
+function rcHeader(s, title){
+  const info = String(s.shopInfo || "KOKO PLUS").split(/[／\/\n]/).map(x => x.trim()).filter(Boolean);
+  const t = x => xmlEsc(x) + "&#10;";
+  return '<text align="center"/>' + info.map((x,i) => i === 0 ? '<text width="2" height="2">'+t(x)+'</text><text width="1" height="1"/>' : '<text>'+t(x)+'</text>').join("")
+    + '<feed line="1"/><text width="2" height="2">'+t(title)+'</text><text width="1" height="1"/>';
+}
+function printSaleReceipt(d, withDrawer, kind){
+  kind = kind || "detail";
+  const s = RS || {};
+  const at = d.outAt || Date.now(), dt = new Date(at);
+  const date = dt.getFullYear()+"/"+pad(dt.getMonth()+1)+"/"+pad(dt.getDate())+" "+fmtTime(at);
+  const total = d.multi ? d.multi.reduce((a,x) => a + (x.fee || 0) + (x.orders || []).reduce((t,o) => t + o.amount, 0), 0) : (d.fee || 0) + (d.orders || []).reduce((t,o) => t + o.amount, 0);
+  const t = x => xmlEsc(x) + "&#10;";
+  const bar = '<text>'+t("-".repeat(RC_COLS))+'</text>';
+  const re = d.reissue ? "（再発行）" : "";
+  let body = "";
+  if(kind === "simple"){
+    body = rcHeader(s, "領収書" + re)
+      + '<feed line="1"/><text align="left"/><text>'+t("                              様")+'</text>' + bar
+      + '<feed line="1"/><text align="center"/><text width="2" height="2">'+t("¥" + yen(total) + "-")+'</text><text width="1" height="1"/>'
+      + '<feed line="1"/><text align="left"/><text>'+t("但し、ご利用代金として")+'</text><text>'+t("上記正に領収いたしました。")+'</text>'
+      + '<feed line="1"/><text>'+t(date)+'</text><text>'+t(rcLine("お支払い", d.pay || ""))+'</text>'
+      + '<feed line="3"/><cut type="feed"/>';
+  } else {
+    const lines = [];
+    if(d.multi){
+      d.multi.forEach(x => {
+        const tl = x.tier === "a" ? "（会員・学生）" : x.tier === "b" ? "（メンバー）" : "";
+        lines.push(rcLine("ラウンジ利用 "+x.num+"番"+((x.people||1) > 1 ? " "+x.people+"名" : "")+tl, ""));
+        lines.push(rcLine("  "+fmtTime(x.inAt)+"-"+fmtTime(x.outAt)+" "+dur(x.minutes||0), yen(x.fee||0)+"円"));
+        (x.orders || []).forEach(o => lines.push(rcLine("  "+(o.memo || catShort(o.cat) || "ご注文"), yen(o.amount)+"円")));
+      });
+    } else if(d.num){
+      const tl = d.tier === "a" ? "（会員・学生）" : d.tier === "b" ? "（メンバー）" : "";
+      lines.push(rcLine("ラウンジ利用 "+d.num+"番"+((d.people||1) > 1 ? " "+d.people+"名" : "")+tl, ""));
+      lines.push(rcLine("  "+fmtTime(d.inAt)+"-"+fmtTime(d.outAt)+" "+dur(d.minutes||0), yen(d.fee||0)+"円"));
+    }
+    if(!d.multi) (d.orders || []).forEach(o => lines.push(rcLine((o.memo || catShort(o.cat) || "ご注文"), yen(o.amount)+"円")));
+    const copy = label => rcHeader(s, "領収書" + re)
+      + '<text>'+t("＜" + label + "＞")+'</text>'
+      + '<feed line="1"/><text align="left"/><text>'+t("                              様")+'</text>' + bar
+      + '<text>'+t(date)+'</text><feed line="1"/>'
+      + lines.map(l => '<text>'+t(l)+'</text>').join("") + bar
+      + '<text width="1" height="2">'+t(rcLine("合計", yen(total)+"円"))+'</text><text width="1" height="1"/>'
+      + '<text>'+t(rcLine("お支払い", d.pay || ""))+'</text>'
+      + '<feed line="1"/><text>'+t("但し、ご利用代金として")+'</text><text>'+t("上記正に領収いたしました。")+'</text>'
+      + '<feed line="3"/><cut type="feed"/>';
+    body = copy("お客様控え") + (s.storeCopy ? copy("店舗控え") : "");
+  }
+  const xml = '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print"><text lang="ja"/>' + body
+    + (withDrawer && s.drawer ? '<pulse drawer="drawer_1" time="pulse_100"/>' : '') + '</epos-print>';
+  const a = document.createElement("a");
+  a.href = "tmprintassistant://tmprintassistant.epson.com/print?ver=1&data-type=eposprintxml&data=" + encodeURIComponent(xml);
+  a.target = "_top"; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function rcButtons(pref){
+  if(!RCPT) return "";
+  const order = pref === "simple" ? [["simple","明細なし"],["detail","明細つき"]] : [["detail","明細つき"],["simple","明細なし"]];
+  return '<div style="display:grid;gap:8px;margin-top:14px">' + order.map((x,i) => '<button onclick="printSaleReceipt(RCPT,false,\''+x[0]+'\')" style="padding:14px;border-radius:12px;font-size:16px;font-weight:700;border:1px solid var(--line);'+(i===0 && pref ? 'background:var(--pine);color:#fff;border-color:var(--pine)' : 'background:var(--surface)')+'">領収書を印刷（'+x[1]+'）</button>').join("") + '</div>';
+}
+
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzPAhz7Y9tarTn3wgTSmjYNReyPDPDqyDuPhdjax4nF1WVwmqTSIZpo2pnp95pc_Q0/exec";
 const head = '<div class="c-head"><b>KOKO PLUS</b><span>Square会計</span></div>';
-function show(cls, title, body){ document.getElementById("p").innerHTML = head + '<p class="big '+cls+'">'+title+'</p><p class="c-small" style="text-align:center">'+body+'</p>'; }
+function show(cls, title, body, pref){ document.getElementById("p").innerHTML = head + '<p class="big '+cls+'">'+title+'</p><p class="c-small" style="text-align:center">'+body+'</p>' + (RCPT ? rcButtons(pref) : ""); }
 const back = "受付画面のタブに戻ってください。このタブは閉じて大丈夫です。";
 let d = {};
 try { d = JSON.parse(new URLSearchParams(location.search).get("data") || "{}"); } catch(e) {}
@@ -248,13 +327,30 @@ let st = {};
 try { st = JSON.parse(d.state || "{}"); } catch(e) {}
 if(d.status !== "ok"){
   show("ngc", "会計は完了していません", "Squareでの会計がキャンセルされたか、うまくいきませんでした（" + (d.error_code || "キャンセル") + "）。<br>退店はまだ記録されていません。受付画面から、もう一度会計してください。");
+} else if(st.w){
+  fetch(GAS_URL + "?api=psale&p=" + encodeURIComponent(st.p || "") + "&k=" + encodeURIComponent(st.k || "") + "&t=" + encodeURIComponent(st.t || "") + "&o=" + encodeURIComponent(JSON.stringify(st.o || [])), {credentials:"omit", cache:"no-store"})
+    .then(r => r.json())
+    .then(x => {
+      if(x.ok){ RCPT = x.rcpt; RS = x.rs; show("okc", "会計が完了しました", "合計 " + Number(x.total).toLocaleString("ja-JP") + "円を記録しました。" + back, st.rk); }
+      else show("ngc", "会計は完了しました", "記録がうまくいきませんでした（日付をまたいだ可能性があります）。お手数ですが、スプレッドシートの「履歴」シートに手で記録してください（支払いは「キャッシュレス」）。");
+    })
+    .catch(() => show("ngc", "会計は完了しました", "通信がうまくいかず、記録されていません。このページを開き直すと、もう一度記録を試します。"));
+} else if(st.m){
+  fetch(GAS_URL + "?api=pay&p=" + encodeURIComponent(st.p || "") + "&m=" + encodeURIComponent(JSON.stringify(st.m)) + "&o=" + encodeURIComponent(st.o || ""), {credentials:"omit", cache:"no-store"})
+    .then(r => r.json())
+    .then(x => {
+      if(x.ok){ RCPT = x.rcpt; RS = x.rs; show("okc", x.n + "番 まとめて会計と退店が完了しました", "合計 " + Number(x.total).toLocaleString("ja-JP") + "円。" + back, st.k); }
+      else if(x.msg === "done") show("okc", "会計は完了しました", "すでに退店が記録されています。" + back);
+      else show("ngc", "会計は完了しました", "退店の記録がうまくいきませんでした。受付画面で、それぞれの番号を「記録だけ」で退店してください。");
+    })
+    .catch(() => show("ngc", "会計は完了しました", "通信がうまくいかず、退店は記録されていません。このページを開き直すと、もう一度記録を試します。"));
 } else if(!st.n || !st.r){
   show("ngc", "会計は完了しました", "ただ、どの番号の会計かわからなかったため、退店は記録されていません。受付画面で「退店を確定する」を押してください。");
 } else {
-  fetch(GAS_URL + "?api=pay&n=" + encodeURIComponent(st.n) + "&r=" + encodeURIComponent(st.r) + "&o=" + encodeURIComponent(st.o || ""), {credentials:"omit", cache:"no-store"})
+  fetch(GAS_URL + "?api=pay&p=" + encodeURIComponent(st.p || "") + "&n=" + encodeURIComponent(st.n) + "&r=" + encodeURIComponent(st.r) + "&o=" + encodeURIComponent(st.o || ""), {credentials:"omit", cache:"no-store"})
     .then(r => r.json())
     .then(x => {
-      if(x.ok) show("okc", st.n + "番 会計と退店が完了しました", "合計 " + Number(x.total).toLocaleString("ja-JP") + "円。" + back);
+      if(x.ok){ RCPT = x.rcpt; RS = x.rs; show("okc", st.n + "番 会計と退店が完了しました", "合計 " + Number(x.total).toLocaleString("ja-JP") + "円。" + back, st.k); }
       else if(x.msg === "done") show("okc", "会計は完了しました", st.n + "番は、すでに退店が記録されています。" + back);
       else show("ngc", "会計は完了しました", "退店の記録がうまくいきませんでした。受付画面で「退店を確定する」を押してください。");
     })
